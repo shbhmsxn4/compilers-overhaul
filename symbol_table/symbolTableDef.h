@@ -32,7 +32,7 @@ typedef struct ___VAR_ST_ENTRY___ {
 } var_id_entry;
 
 typedef struct ___ARRAY_ST_ENTRY___ {
-	id_type t;
+	id_type type;
 	int width; // TODO: after dynamic arrays are discussed
 	int offset;
 	int range_start;
