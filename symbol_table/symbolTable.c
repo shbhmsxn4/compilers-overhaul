@@ -1,11 +1,18 @@
 #include "./symbolTableDef.h"
 
+#define DEFAULT_ST_SIZE 71
+#define DEFAULT_SCOPE_SIZE 41
+
 id_type terminal_to_type (terminal t) {
 	switch (t) {
 		case INTEGER : return integer;
 		case REAL : return real;
 		case BOOLEAN : return boolean;
 		case ARRAY : return array;
+		case NUM : return integer;
+		case RNUM: return real;
+		case TRUE : return boolean;
+		case FALSE : return boolean;
 		default : return -1;
 	}
 }
@@ -18,7 +25,6 @@ id_type get_type_from_node (tree_node *node) {
 
 int* get_range_from_node (tree_node *node) {
 	int *indices = (int *) malloc(2*sizeof(int));
-	tree_node *range_arrays = get_child(node, 0);
 	indices[0] = ((ast_leaf *) get_data(
 				get_child(node, 0)))->ltk->nv.int_val;
 	indices[1] = ((ast_leaf *) get_data(
@@ -26,7 +32,92 @@ int* get_range_from_node (tree_node *node) {
 	return indices;
 }
 
-void symbol_table_fill (hash_map *main_st, tree_node *astn) {
+scope_node *create_new_scope (scope_node *parent) {
+	scope_node *new_scope = (scope_node *) malloc(sizeof(scope_node));
+	new_scope->var_id_st = create_hash_map(DEFAULT_ST_SIZE);
+	new_scope->arr_st = create_hash_map(DEFAULT_ST_SIZE);
+	new_scope->parent_scope = parent;
+	new_scope->child_scopes = create_hash_map(DEFAULT_SCOPE_SIZE);
+	return new_scope;
+}
+
+var_id_entry *create_var_entry (char *lexeme, id_type type, int width, int offset) {
+	var_id_entry *entry = (var_id_entry *) malloc(sizeof(var_id_entry));
+	strcpy(entry->lexeme, lexeme);
+	entry->type = type;
+	entry->width = width;
+	entry->offset = offset;
+	return entry;
+}
+
+arr_id_entry *create_arr_entry (char *lexeme, id_type type, int rstart, int rend, int width, int offset) {
+	arr_id_entry *entry = (arr_id_entry *) malloc(sizeof(arr_id_entry));
+	strcpy(entry->lexeme, lexeme);
+	entry->type = type;
+	entry->range_start = rstart;
+	entry->range_end = rend;
+	entry->width = width;
+	entry->offset = offset;
+	return entry;
+}
+
+func_entry *create_func_entry (char *name, bool only_declared, bool is_called, int offset, int width) {
+	func_entry *entry = (func_entry *) malloc(sizeof(func_entry));
+	strcpy(entry->name, name);
+	entry->input_param_list = create_linked_list();
+	entry->output_param_list = create_linked_list();
+	entry->local_scope = create_new_scope(NULL);
+	entry->only_declared = only_declared;
+	entry->is_called = is_called;
+	entry->offset = offset;
+	entry->width = width;
+	return entry;
+}
+
+common_id_entry *find_id (char *lexeme, scope_node *curr_scope, bool is_recursive) {
+	common_id_entry *centry = (common_id_entry *) malloc(sizeof(common_id_entry));
+
+	var_id_entry *ventry = (var_id_entry *) fetch_from_hash_map(curr_scope->var_id_st, lexeme);
+	if (ventry != NULL) {
+		centry->is_array = false;
+		centry->entry.var_entry = ventry;
+		return centry;
+	}
+
+	arr_id_entry *aentry = (arr_id_entry *) fetch_from_hash_map(curr_scope->arr_st, lexeme);
+	if (aentry != NULL) {
+		centry->is_array = true;
+		centry->entry.arr_entry = aentry;
+		return centry;
+	}
+
+	// function local params ???????????????/
+	if (is_recursive) {
+		if (curr_scope->parent_scope != NULL)
+			return find_id_rec(lexeme, curr_scope->parent_scope);
+		else {
+			// => in the function local scope
+			// search in input/output params???????????????
+		}
+	}
+	return centry;
+}
+
+common_id_entry *find_id_rec (char *lexeme, scope_node *curr_scope) {
+	return find_id (lexeme, curr_scope, true);
+}
+
+common_id_entry *find_id_in_scope (char *lexeme, scope_node *curr_scope) {
+	return find_id (lexeme, curr_scope, false);
+}
+
+bool match_array_type (arr_id_entry *arr1, arr_id_entry *arr2) {
+	return (arr1->type == arr2->type &&
+		arr1->range_start == arr2->range_start &&
+		arr1->range_end == arr2->range_end);
+}
+
+void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 	ast_node* ast_data = (ast_node *)get_data(astn);
 	gm_unit data_label = ast_data->label;
 	
@@ -36,17 +127,17 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn) {
 	nonterminal ast_nt = data_label.gms.nt;
 
     if (ast_nt == program) {
-		symbol_table_fill(main_st, get_child(astn, 0));
-		symbol_table_fill(main_st, get_child(astn, 1));
-		symbol_table_fill(main_st, get_child(astn, 2));
-		symbol_table_fill(main_st, get_child(astn, 3));
+		symbol_table_fill(main_st, get_child(astn, 0), curr_scope);
+		symbol_table_fill(main_st, get_child(astn, 1), curr_scope);
+		symbol_table_fill(main_st, get_child(astn, 2), curr_scope);
+		symbol_table_fill(main_st, get_child(astn, 3), curr_scope);
     }
 
     if (ast_nt == moduleDeclarations) {
 		linked_list *module_decs = ((ast_node *) get_data(astn))->ll;
 
 		for (int i = 0; i < module_decs->num_nodes; i++)
-			symbol_table_fill(main_st, ll_get(module_decs, i));
+			symbol_table_fill(main_st, ll_get(module_decs, i), curr_scope);
     }
 
 	if (ast_nt == moduleDeclaration) {
@@ -58,10 +149,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn) {
 		char *func_name = module_id_data->ltk->lexeme;
 		func_entry *f_st_entry = (func_entry *) fetch_from_hash_map(main_st, func_name);
 		if (f_st_entry == NULL) {
-			f_st_entry = (func_entry *) malloc(sizeof(func_entry));
-			f_st_entry->only_declared = true;
-			f_st_entry->is_called = false;
-			strcpy(f_st_entry->name, func_name);
+			f_st_entry = create_func_entry(func_name, true, false, -1, -1);
 			add_to_hash_map(main_st, func_name, f_st_entry);
 		}
 		else {
@@ -75,7 +163,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn) {
 		linked_list *other_mods = ((ast_node *) get_data(astn))->ll;
 
 		for (int i = 0; i < other_mods->num_nodes; i++)
-			symbol_table_fill(main_st, ll_get(other_mods, i));
+			symbol_table_fill(main_st, ll_get(other_mods, i), curr_scope);
 	}
 
 	if (ast_nt == driverModule) {
@@ -96,10 +184,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn) {
 		char *func_name = module_id_data->ltk->lexeme;
 		func_entry *f_st_entry = (func_entry *) fetch_from_hash_map(main_st, func_name);
 		if (f_st_entry == NULL) {
-			f_st_entry = (func_entry *) malloc(sizeof(func_entry));
-			f_st_entry->only_declared = false;
-			f_st_entry->is_called = false;
-			strcpy(f_st_entry->name, func_name);
+			f_st_entry = create_func_entry(func_name, false, false, -1, -1);
 			add_to_hash_map(main_st, func_name, f_st_entry);
 		}
 		else if (f_st_entry->only_declared && f_st_entry->is_called) {
@@ -132,18 +217,17 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn) {
 				
 				tree_node *range_arrays = get_child(param_type, 0);
 				int *range_indices = get_range_from_node(range_arrays);
-				fparam->param.arr_entry->range_start = range_indices[0];
-				fparam->param.arr_entry->range_end = range_indices[1];
 
-				fparam->param.arr_entry = (arr_id_entry *) malloc(sizeof(arr_id_entry));
-				fparam->param.arr_entry->type = get_type_from_node(get_child(param_type, 1));
-				strcpy(fparam->param.arr_entry->lexeme, param_id->ltk->lexeme);
+				fparam->param.arr_entry = create_arr_entry(
+						param_id->ltk->lexeme,
+						get_type_from_node(get_child(param_type, 1)),
+						range_indices[0],
+						range_indices[1],
+						-1, -1);
 			}
 			else {
 				fparam->is_array = false;
-				fparam->param.var_entry = (var_id_entry *) malloc(sizeof(var_id_entry));
-				strcpy(fparam->param.var_entry->lexeme, param_id->ltk->lexeme);
-				fparam->param.var_entry->type = type_param;
+				fparam->param.var_entry = create_var_entry(param_id->ltk->lexeme, type_param, -1, -1);
 			}
 			ll_append(fip_ll, fparam);
 		}
@@ -165,131 +249,202 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn) {
 			id_type type_param = get_type_from_node(param_type);
 
 			fparam->is_array = false;
-			fparam->param.var_entry = (var_id_entry *) malloc(sizeof(var_id_entry));
-			strcpy(fparam->param.var_entry->lexeme, param_id->ltk->lexeme);
-			fparam->param.var_entry->type = type_param;
+			fparam->param.var_entry = create_var_entry(param_id->ltk->lexeme, type_param, -1, -1);
 
 			ll_append(fop_ll, fparam);
 		}
 		f_st_entry->output_param_list = fop_ll;
 
 		// MODULEDEF
-		// ?????????????????
+		symbol_table_fill(main_st, get_child(astn, 3), f_st_entry->local_scope);
 	}
-
-/*
- *    if (ast_nt == ret)
- *    {
- *    }
- *
- *    if (ast_nt == input_plist)
- *    {
- *    }
- *
- *    if (ast_nt == input_plist2)
- *    {
- *    }
- *
- *    if (ast_nt == output_plist)
- *    {
- *    }
- *
- *    if (ast_nt == output_plist2)
- *    {
- *    }
- *
- */
-/*
- *    if (ast_nt == dataType)
- *    {
- *    }
- *
- *    if (ast_nt == range_arrays)
- *    {
- *    }
- *
- *    if (ast_nt == type)
- *    {
- *    }
- */
 
 	if (ast_nt == moduleDef) {
 		linked_list *statements = ((ast_node *) get_data(astn))->ll;
 
-		for (int i = 0; i < statments->num_nodes; i++)
-			symbol_table_fill(main_st, ll_get(statements, i));
+		for (int i = 0; i < statements->num_nodes; i++)
+			symbol_table_fill(main_st, ll_get(statements, i), curr_scope);
 	}
 
-/*
- *    if (ast_nt == statements)
- *    {
- *    }
- *
- *    if (ast_nt == statement)
- *    {
- *    }
- */
+	/*ioStmt start*/
+	if (ast_nt == input_stmt) {
+		char *var_name = ((ast_leaf *) get_data(get_child(astn, 0)))->ltk->lexeme;
+		common_id_entry *entry = dfind_id_rec(var_name, curr_scope);
+		if (entry == NULL) {
+			// TODO: variable not declared
+		}
+		else {
+			// TODO:
+			// generate assembly code to take input
+			// and store at corresponding offset
+			// taken from ST
+		}
+	}
 
-    if (ast_nt == ioStmt)
-    {
-    }
+	if (ast_nt == output_stmt) {
+		tree_node *var_node = get_child(astn, 0);
+		int child_cnt = get_num_children(var_node);
+		
+		if (child_cnt == 1) {
+			// VAR -> NUM, RNUM, TRUE, FALSE
+			tree_node *const_var_node = get_child(var_node, 0);
+			// TODO: generate ast code to display value of
+			// this constant
+		}
+		else if (child_cnt == 2) {
+			ast_leaf *id_data = (ast_leaf *) get_data(get_child(var_node, 0));
+			tree_node *whichid_node = get_child(var_node, 1);
+			
+			char *var_name = id_data->ltk->lexeme;
+			common_id_entry *entry = find_id_rec(var_name, curr_scope);
+			if (get_data(whichid_node) == NULL) {
+				// VAR -> ID
+				if (entry->is_array) {
+					// TODO: assembly code to display all
+					// elements of the array
+				}
+				else {
+					// TODO: generate ast code to get value of var
+					// and display it
+				}
+			}
+			else {
+				// VAR -> ID WHICHID
+				if (!entry->is_array) {
+					// TODO: type err
+				}
+				else {
+					// TODO: generate ast code to index arr
+					// and display corresponding value
+				}
+			}
+		}
+	}
+	/*ioStmt end*/
 
-    if (ast_nt == boolConstt)
-    {
-    }
+	if (ast_nt == assignmentStmt) {
+		ast_leaf *id_data = (ast_leaf *) get_data(get_child(astn, 0));
+		tree_node *whichstmt_node = get_child(astn, 1);
+		ast_node *whichstmt_data = (ast_node *) get_data(whichstmt_node);
+		
+		char *var_name = id_data->ltk->lexeme;
+		common_id_entry *entry = find_id_rec(var_name, curr_scope);
+		if (entry == NULL) {
+			// TODO: undeclared id
+		}
+		else {
+			if (whichstmt_data->label.gms.nt == lvalueIDStmt) {
+				if (entry->is_array) {
+					// TODO: type err - should not be array
+				}
+				else {
+					tree_node *expr_node = get_child(whichstmt_node, 0);
+					// TODO: generate assembly code to compute expr value
+					// and assign it to the id here
+				}
+			}
+			else if (whichstmt_data->label.gms.nt == lvalueARRStmt) {
+				if (!entry->is_array) {
+					// TODO: type err - should be array
+				}
+				else {
+					tree_node *index_node = get_child(whichstmt_node, 0);
+					tree_node *expr_node = get_child(whichstmt_node, 1);
 
-    if (ast_nt == var_id_num)
-    {
-    }
+					ast_leaf *index_data = (ast_leaf *) get_data(index_node);
+					if (index_data->label.gms.t == NUM) {
+						// TODO:
+					}
+					else if (index_data->label.gms.t == ID) {
+						// TODO:
+					}
+					// TODO: generate asm code to compute expr
+					// and assign it to array element of given index
+				}
+			}
+		}
+	}
 
-    if (ast_nt == var)
-    {
-    }
+	if (ast_nt == moduleReuseStmt) {
+		tree_node *opt_node = get_child(astn, 0);
+		ast_leaf *id_data = (ast_leaf *) get_data(get_child(astn, 1));
 
-    if (ast_nt == whichId)
-    {
-    }
+		char *func_name = id_data->ltk->lexeme;
+		func_entry *fentry = fetch_from_hash_map(main_st, func_name);
 
-    if (ast_nt == simpleStmt)
-    {
-    }
+		if (fentry == NULL) {
+			// TODO: undeclared func err
+		}
 
-    if (ast_nt == assignmentStmt)
-    {
-    }
+		// OUTPUT PARAMS - return values
+		if (get_data(opt_node) != NULL) {
+			linked_list *ret_var_ll = ((ast_node *) get_data(opt_node))->ll;
+			linked_list *op_ll = fentry->output_param_list;
 
-    if (ast_nt == whichStmt)
-    {
-    }
+			if (ret_var_ll->num_nodes != op_ll->num_nodes) {
+				// TODO: params count mismatch err
+			}
+			else {
+				int pcnt = op_ll->num_nodes;
+				for (int i = 0; i < pcnt; i++) {
+					tree_node *ret_var_lnode = (tree_node *) ll_get(ret_var_ll, i);
+					char *ret_var_name = ((ast_leaf *) get_data(ret_var_lnode))->ltk->lexeme;
+					common_id_entry *ret_var_entry = find_id_rec(ret_var_name, curr_scope);
+					if (ret_var_entry == NULL) {
+						// TODO: undeclared var
+					}
+					else {
+						param_node *op_lnode = (param_node *) ll_get(op_ll, i);
+						if (
+								(ret_var_entry->is_array != op_lnode->is_array) ||
+								(ret_var_entry->is_array && 
+								 !match_array_type(ret_var_entry->entry.arr_entry, op_lnode->param.arr_entry)
+								 ) ||
+								(!ret_var_entry->is_array &&
+								 ret_var_entry->entry.var_entry->type != op_lnode->param.var_entry->type
+								 )
+						   ) {
+							// TODO: type mismatch between function call and assign
+						}
+					}
+				}
+			}
+		}
 
-    if (ast_nt == lvalueIDStmt)
-    {
-    }
+		// INPUT PARAMS - args
+		linked_list *arg_var_ll = ((ast_node *) get_data(get_child(astn, 2)))->ll;
+		linked_list *ip_ll = fentry->input_param_list;
 
-    if (ast_nt == lvalueARRStmt)
-    {
-    }
-
-    if (ast_nt == index_nt)
-    {
-    }
-
-    if (ast_nt == moduleReuseStmt)
-    {
-    }
-
-    if (ast_nt == optional)
-    {
-    }
-
-    if (ast_nt == idList)
-    {
-    }
-
-    if (ast_nt == idList2)
-    {
-    }
-
+		if (arg_var_ll->num_nodes != ip_ll->num_nodes) {
+			// TODO: params count mismatch err
+		}
+		else {
+			int pcnt = ip_ll->num_nodes;
+			for (int i = 0; i < pcnt; i++) {
+				tree_node *arg_var_lnode = (tree_node *) ll_get(arg_var_ll, i);
+				char *arg_var_name = ((ast_leaf *) get_data(arg_var_lnode))->ltk->lexeme;
+				common_id_entry *arg_var_entry = find_id_rec(arg_var_name, curr_scope);
+				if (arg_var_entry == NULL) {
+					// TODO: undeclared var
+				}
+				else {
+					param_node *ip_lnode = (param_node *) ll_get(ip_ll, i);
+					if (
+							(arg_var_entry->is_array != ip_lnode->is_array) ||
+							(arg_var_entry->is_array && 
+							 !match_array_type(arg_var_entry->entry.arr_entry, ip_lnode->param.arr_entry)
+							 ) ||
+							(!arg_var_entry->is_array &&
+							 arg_var_entry->entry.var_entry->type != ip_lnode->param.var_entry->type
+							 )
+					   ) {
+						// TODO: type mismatch between function call and assign
+					}
+				}
+			}
+		}
+	}
+    
     if (ast_nt == expression)
     {
     }
@@ -358,48 +513,165 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn) {
     {
     }
 
-    if (ast_nt == declareStmt)
-    {
-    }
+	if (ast_nt == declareStmt) {
+		linked_list *id_ll = ((ast_node *) get_data(get_child(astn, 0)))->ll;
+		tree_node *dtype_node = get_child(astn, 1);
+		id_type dtype = get_type_from_node(dtype_node);
 
-    if (ast_nt == condionalStmt)
-    {
-    }
+		int cnt = id_ll->num_nodes;
+		for (int i = 0; i < cnt; i++) {
+			tree_node *id_lnode = (tree_node *) ll_get(id_ll, i);
+			char *id_var_name = ((ast_leaf *) get_data(id_lnode))->ltk->lexeme;
+			common_id_entry *id_var_entry = find_id_rec(id_var_name, curr_scope);
+			if (id_var_entry != NULL) {
+				// TODO: redeclaration error 
+			}
+			else {
+				if (dtype == array) {
+					tree_node *range_arrays = get_child(dtype_node, 0);
+					int *range_indices = get_range_from_node(range_arrays);
 
-    if (ast_nt == caseStmts)
-    {
-    }
+					
+					arr_id_entry *entry = create_arr_entry(
+							id_var_name,
+							get_type_from_node(get_child(dtype_node, 1)),
+							range_indices[0],
+							range_indices[1],
+							-1, -1);
+					add_to_hash_map(curr_scope->arr_st, id_var_name, entry);
+				}
+				else {
+					var_id_entry *entry = create_var_entry(id_var_name, dtype, -1, -1);
+					add_to_hash_map(curr_scope->var_id_st, id_var_name, entry);
+				}
+			}
+		}
+	}
 
-    if (ast_nt == caseStmts2)
-    {
-    }
+	if (ast_nt == condionalStmt) {
+		tree_node *id_node = get_child(astn, 0);
+		tree_node *casestmt_node = get_child(astn, 1);
+		tree_node *default_node = get_child(astn, 2);
+		linked_list *casestmts_ll = ((ast_node *) get_data(casestmt_node))->ll;
 
-    if (ast_nt == value)
-    {
-    }
+		// using line_num to generate key for hash map
+		int line_num = ((ast_leaf *) get_data(id_node))->ltk->line_num;
+		char str_line_num[25];
+		sprintf(str_line_num, "%d", line_num);
+		scope_node *new_scope = create_new_scope(curr_scope);
+		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
 
-    if (ast_nt == default_nt)
-    {
-    }
+		id_type var_type = get_type_from_node(id_node);
+		if (var_type == real || var_type == array) {
+			// TODO: type err switch var cant be these
+		}
+		else if (var_type == integer) {
+			for (int i = 0; i < casestmts_ll->num_nodes; i++) {
+				tree_node *cstmt_node = (tree_node *) ll_get(casestmts_ll, i);
+				tree_node *val_node = get_child(cstmt_node, 0);
+				tree_node *stmts_node = get_child(cstmt_node, 1);
 
-    if (ast_nt == iterativeStmt)
-    {
-    }
+				id_type val_type = get_type_from_node(val_node); // can only boolean or integer
+																// because of grammar
+				if (val_type != integer) {
+					// TODO: type error, should be integer
+				}
 
-    if (ast_nt == range)
-    {
-    }
+				linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
+				for (int j = 0; j < stmts_ll->num_nodes; j++)
+					symbol_table_fill(main_st, ll_get(stmts_ll, j), new_scope);
+			}
 
+			if (get_data(default_node) == NULL) {
+				// TODO: err required default stmt
+			}
+			else {
+
+			}
+		}
+		else if (var_type == boolean) {
+			if (casestmts_ll->num_nodes != 2) {
+				// TODO: err need exactly 2 case stmts (true/false)
+			}
+
+			bool got_true = false, got_false = false;
+			for (int i = 0; i < 2 && i < casestmts_ll->num_nodes; i++) {
+				tree_node *cstmt_node = (tree_node *) ll_get(casestmts_ll, i);
+				tree_node *val_node = get_child(cstmt_node, 0);
+				tree_node *stmts_node = get_child(cstmt_node, 1);
+
+				id_type val_type = get_type_from_node(val_node); // can only boolean or integer
+																// because of grammar
+				if (val_type != boolean) {
+					// TODO: type error, should be integer
+				}
+
+				terminal val_term = ((ast_leaf *) get_data(val_node))->label.gms.t;
+				got_true |= (val_term == TRUE);
+				got_false |= (val_term == FALSE);
+
+				linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
+				for (int j = 0; j < stmts_ll->num_nodes; j++)
+					symbol_table_fill(main_st, ll_get(stmts_ll, j), new_scope);
+			}
+
+			if (!got_true || !got_false) {
+				// TODO: true false both cases required
+			}
+
+			if (get_data(default_node) != NULL) {
+				// TODO: err should not have default stmt
+			}
+		}
+		else {
+			// TODO: unknown err
+		}
+
+		//
+		// code gen
+		//
+	}
+
+	if (ast_nt == for_loop) {
+		tree_node *id_node = get_child(astn, 0);
+		ast_leaf *id_data = get_data(id_node, 0);
+		tree_node *range_node = get_child(astn, 1);
+		tree_node *stmts_node = get_child(astn, 2);
+
+		// using line_num to generate key for hash map
+		int line_num = id_data->ltk->line_num;
+		char str_line_num[25];
+		sprintf(str_line_num, "%d", line_num);
+		scope_node *new_scope = create_new_scope(curr_scope);
+		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
+
+		// insert loop var in scope
+		var_id_entry *entry = create_var_entry(id_data->ltk->lexeme, integer, -1, -1);
+		add_to_hash_map(new_scope->var_id_st, id_data->ltk->lexeme, entry);
+
+		int range_indices[2] = get_range_from_node(get_child(range_node));
+		// TODO: what to do with range here for code generation
+		// and statements (below)
+		//
+		// ??
+		linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
+		for (int j = 0; j < stmts_ll->num_nodes; j++)
+			symbol_table_fill(main_st, ll_get(stmts_ll, j), new_scope);
+	}
+
+	if (ast_nt == while_loop) {
+		// TODO: need line_num here to create new scope
+		tree_node *aobexpr_node = get_child(astn, 0);
+		tree_node *stmts_node = get_child(astn, 1);
+	}
 }
 
 void create_symbol_table (tree_node *astn) {
-	hash_map *main_st = create_hash_map(71);
+	hash_map *main_st = create_hash_map(DEFAULT_ST_SIZE);
 
 	// default entry for driver module
-	func_entry *st_entry = (func_entry *) malloc(sizeof(func_entry));
-	st_entry->only_declared = true;
-	strcpy(st_entry->name, "program");
+	func_entry *st_entry = create_func_entry("program", true, false, -1, -1);
 	add_to_hash_map(main_st, st_entry->name, st_entry);
 
-	symbol_table_fill (main_st, astn);
+	symbol_table_fill (main_st, astn, NULL);
 }
