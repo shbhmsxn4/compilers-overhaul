@@ -25,19 +25,23 @@ id_type get_type_from_node (tree_node *node) {
 
 int* get_range_from_node (tree_node *node) {
 	int *indices = (int *) malloc(2*sizeof(int));
-	indices[0] = ((ast_leaf *) get_data(
-				get_child(node, 0)))->ltk->nv.int_val;
-	indices[1] = ((ast_leaf *) get_data(
-				get_child(node, 1)))->ltk->nv.int_val;
+	ast_leaf *index1 = (ast_leaf *) get_data(get_child(node, 0));
+	ast_leaf *index2 = (ast_leaf *) get_data(get_child(node, 1));
+
+	// if dynamic then range value is -1
+	indices[0] = (index1->label.gms.t == ID) ? -1 : index1->ltk->nv.int_val;
+	indices[1] = (index2->label.gms.t == ID) ? -1 : index2->ltk->nv.int_val;
 	return indices;
 }
 
-scope_node *create_new_scope (scope_node *parent) {
+scope_node *create_new_scope (scope_node *parent, func_entry *func) {
 	scope_node *new_scope = (scope_node *) malloc(sizeof(scope_node));
 	new_scope->var_id_st = create_hash_map(DEFAULT_ST_SIZE);
 	new_scope->arr_st = create_hash_map(DEFAULT_ST_SIZE);
 	new_scope->parent_scope = parent;
 	new_scope->child_scopes = create_hash_map(DEFAULT_SCOPE_SIZE);
+	new_scope->func = func;
+
 	return new_scope;
 }
 
@@ -58,6 +62,8 @@ arr_id_entry *create_arr_entry (char *lexeme, id_type type, int rstart, int rend
 	entry->range_end = rend;
 	entry->width = width;
 	entry->offset = offset;
+
+	entry->is_static = (rstart != -1) && (rend != -1);
 	return entry;
 }
 
@@ -66,7 +72,7 @@ func_entry *create_func_entry (char *name, bool only_declared, bool is_called, i
 	strcpy(entry->name, name);
 	entry->input_param_list = create_linked_list();
 	entry->output_param_list = create_linked_list();
-	entry->local_scope = create_new_scope(NULL);
+	entry->local_scope = create_new_scope(NULL, entry);
 	entry->only_declared = only_declared;
 	entry->is_called = is_called;
 	entry->offset = offset;
@@ -91,14 +97,9 @@ common_id_entry *find_id (char *lexeme, scope_node *curr_scope, bool is_recursiv
 		return centry;
 	}
 
-	// function local params ???????????????/
 	if (is_recursive) {
 		if (curr_scope->parent_scope != NULL)
-			return find_id_rec(lexeme, curr_scope->parent_scope);
-		else {
-			// => in the function local scope
-			// search in input/output params???????????????
-		}
+			return find_id(lexeme, curr_scope->parent_scope, true);
 	}
 	return centry;
 }
@@ -111,12 +112,135 @@ common_id_entry *find_id_in_scope (char *lexeme, scope_node *curr_scope) {
 	return find_id (lexeme, curr_scope, false);
 }
 
+param_node *find_id_in_paramsll (char *lexeme, linked_list *pll) {
+	/*common_id_entry *centry = (common_id_entry *) malloc(sizeof(common_id_entry));*/
+	for (int i = 0; i < pll->num_nodes; i++) {
+		param_node *plnode = (param_node *) ll_get(pll, i);
+		if (plnode->is_array) {
+			arr_id_entry *aentry = plnode->param.arr_entry;
+			if (strcmp(lexeme, aentry->lexeme) == 0) {
+				/*
+				 *centry->is_array = true;
+				 *centry->entry = plnode->param;
+				 *break;
+				 */
+				return plnode;
+			}
+		}
+		else {
+			var_id_entry *ventry = plnode->param.var_entry;
+			if (strcmp(lexeme, ventry->lexeme) == 0) {
+				/*
+				 *centry->is_array = false;
+				 *centry->entry = plnode->param;
+				 *break;
+				 */
+				return plnode;
+			}
+		}
+	}
+	return NULL;
+}
+
+param_node *find_id_in_inputparams (char *lexeme, func_entry *entry) {
+	linked_list *pll = entry->input_param_list;
+	return find_id_in_paramsll(lexeme, pll);
+}
+
+param_node *find_id_in_outputparams (char *lexeme, func_entry *entry) {
+	linked_list *pll = entry->output_param_list;
+	return find_id_in_paramsll(lexeme, pll);
+}
+
+common_id_entry *param_to_st_entry (param_node *p) {
+	if (p == NULL) return NULL;
+	common_id_entry *centry = (common_id_entry *) malloc(sizeof(common_id_entry));
+	centry->is_array = p->is_array;
+	centry->entry = p->param;
+	return centry;
+}
+
+common_id_entry *find_id_for_decl (char *lexeme, scope_node *curr_scope) {
+	common_id_entry *sentry = find_id_in_scope(lexeme, curr_scope);
+	if (sentry != NULL || curr_scope->parent_scope != NULL) return sentry;
+
+	param_node *op = find_id_in_outputparams(lexeme, curr_scope->func);
+	return param_to_st_entry(op);
+}
+
+common_id_entry *find_id_for_use (char *lexeme, scope_node *curr_scope) {
+	common_id_entry *rentry = find_id_rec(lexeme, curr_scope);
+	if (rentry != NULL) return rentry;
+
+	param_node *ip = find_id_in_inputparams(lexeme, curr_scope->func);
+	if (ip != NULL) return param_to_st_entry(ip);
+
+	param_node *op = find_id_in_outputparams(lexeme, curr_scope->func);
+	if (op != NULL && op->is_assigned) {
+		return param_to_st_entry(op);
+	}
+	return NULL;
+}
+
+common_id_entry *find_id_for_assign (char *lexeme, scope_node *curr_scope) {
+	common_id_entry *rentry = find_id_rec(lexeme, curr_scope);
+	if (rentry != NULL) return rentry;
+
+	param_node *op = find_id_in_outputparams(lexeme, curr_scope->func);
+	if (op != NULL) {
+		op->is_assigned = true;
+		return param_to_st_entry(op);
+	}
+
+	param_node *ip = find_id_in_inputparams(lexeme, curr_scope->func);
+	return param_to_st_entry(ip);
+}
+
 bool match_array_type (arr_id_entry *arr1, arr_id_entry *arr2) {
 	return (arr1->type == arr2->type &&
 		arr1->range_start == arr2->range_start &&
 		arr1->range_end == arr2->range_end);
 }
 
+// returns
+// -1 => dynamic bound check required
+// 1 => check done 
+int bound_type_check (arr_id_entry *entry, tree_node *index_nt) {
+	ast_leaf *index_data = (ast_leaf *) get_data(index_nt);
+	if (entry->is_static) {
+		if (index_data->label.gms.t == NUM) {
+			// compile time bound check
+			
+			int ind = index_data->ltk->nv.int_val;
+			if (ind >= entry->range_start && ind <= entry->range_end) {
+				// TODO: out of bounds err
+			}
+			return 1;
+		}
+		else {
+			// TODO: run time bound check - arr static but index dynamic
+			
+			if (get_type_from_node(index_nt) != integer) {
+				// TODO: err index should be of type integer
+			}
+			return -1;
+		}
+	}
+	else {
+		if (index_data->label.gms.t == NUM) {
+			// TODO: run time bound check - arr dynamic but index static 
+
+			return -1;
+		}
+		else {
+			// TODO: run time bound check - arr dynamic but index dynamic
+
+			return -1;
+		}
+	}
+}
+
+// FIRST AST PASS
 void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 	ast_node* ast_data = (ast_node *)get_data(astn);
 	gm_unit data_label = ast_data->label;
@@ -249,6 +373,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 			id_type type_param = get_type_from_node(param_type);
 
 			fparam->is_array = false;
+			fparam->is_assigned = false;
 			fparam->param.var_entry = create_var_entry(param_id->ltk->lexeme, type_param, -1, -1);
 
 			ll_append(fop_ll, fparam);
@@ -257,6 +382,14 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 
 		// MODULEDEF
 		symbol_table_fill(main_st, get_child(astn, 3), f_st_entry->local_scope);
+
+		// check if all output params have been assigned
+		for (int i = 0; i < op_ll->num_nodes; i++) {
+			param_node *pnode = (param_node *) ll_get(op_ll, i);
+			if (!pnode->is_assigned) {
+				// TODO: unassigned output param
+			}
+		}
 	}
 
 	if (ast_nt == moduleDef) {
@@ -269,7 +402,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 	/*ioStmt start*/
 	if (ast_nt == input_stmt) {
 		char *var_name = ((ast_leaf *) get_data(get_child(astn, 0)))->ltk->lexeme;
-		common_id_entry *entry = dfind_id_rec(var_name, curr_scope);
+		common_id_entry *entry = find_id_for_use(var_name, curr_scope);
 		if (entry == NULL) {
 			// TODO: variable not declared
 		}
@@ -296,7 +429,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 			tree_node *whichid_node = get_child(var_node, 1);
 			
 			char *var_name = id_data->ltk->lexeme;
-			common_id_entry *entry = find_id_rec(var_name, curr_scope);
+			common_id_entry *entry = find_id_for_use(var_name, curr_scope);
 			if (get_data(whichid_node) == NULL) {
 				// VAR -> ID
 				if (entry->is_array) {
@@ -310,10 +443,21 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 			}
 			else {
 				// VAR -> ID WHICHID
+				ast_leaf *whichid_data = (ast_leaf *) get_data(whichid_node);
 				if (!entry->is_array) {
 					// TODO: type err
 				}
 				else {
+					arr_id_entry *aentry = entry->entry.arr_entry;
+					int check_ret = bound_type_check(aentry, whichid_node);
+					if (check_ret == 1) {
+						// TODO: out of bounds err
+					}
+					else if (check_ret == -1) {
+						// TODO: runtime bound check
+						// here or in bound_check() call???
+					}
+					
 					// TODO: generate ast code to index arr
 					// and display corresponding value
 				}
@@ -328,7 +472,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		ast_node *whichstmt_data = (ast_node *) get_data(whichstmt_node);
 		
 		char *var_name = id_data->ltk->lexeme;
-		common_id_entry *entry = find_id_rec(var_name, curr_scope);
+		common_id_entry *entry = find_id_for_assign(var_name, curr_scope);
 		if (entry == NULL) {
 			// TODO: undeclared id
 		}
@@ -389,7 +533,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 				for (int i = 0; i < pcnt; i++) {
 					tree_node *ret_var_lnode = (tree_node *) ll_get(ret_var_ll, i);
 					char *ret_var_name = ((ast_leaf *) get_data(ret_var_lnode))->ltk->lexeme;
-					common_id_entry *ret_var_entry = find_id_rec(ret_var_name, curr_scope);
+					common_id_entry *ret_var_entry = find_id_for_assign(ret_var_name, curr_scope);
 					if (ret_var_entry == NULL) {
 						// TODO: undeclared var
 					}
@@ -423,7 +567,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 			for (int i = 0; i < pcnt; i++) {
 				tree_node *arg_var_lnode = (tree_node *) ll_get(arg_var_ll, i);
 				char *arg_var_name = ((ast_leaf *) get_data(arg_var_lnode))->ltk->lexeme;
-				common_id_entry *arg_var_entry = find_id_rec(arg_var_name, curr_scope);
+				common_id_entry *arg_var_entry = find_id_for_use(arg_var_name, curr_scope);
 				if (arg_var_entry == NULL) {
 					// TODO: undeclared var
 				}
@@ -522,7 +666,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		for (int i = 0; i < cnt; i++) {
 			tree_node *id_lnode = (tree_node *) ll_get(id_ll, i);
 			char *id_var_name = ((ast_leaf *) get_data(id_lnode))->ltk->lexeme;
-			common_id_entry *id_var_entry = find_id_rec(id_var_name, curr_scope);
+			common_id_entry *id_var_entry = find_id_for_decl(id_var_name, curr_scope);
 			if (id_var_entry != NULL) {
 				// TODO: redeclaration error 
 			}
@@ -530,7 +674,6 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 				if (dtype == array) {
 					tree_node *range_arrays = get_child(dtype_node, 0);
 					int *range_indices = get_range_from_node(range_arrays);
-
 					
 					arr_id_entry *entry = create_arr_entry(
 							id_var_name,
@@ -558,7 +701,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		int line_num = ((ast_leaf *) get_data(id_node))->ltk->line_num;
 		char str_line_num[25];
 		sprintf(str_line_num, "%d", line_num);
-		scope_node *new_scope = create_new_scope(curr_scope);
+		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
 		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
 
 		id_type var_type = get_type_from_node(id_node);
@@ -634,7 +777,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 
 	if (ast_nt == for_loop) {
 		tree_node *id_node = get_child(astn, 0);
-		ast_leaf *id_data = get_data(id_node, 0);
+		ast_leaf *id_data = get_data(id_node);
 		tree_node *range_node = get_child(astn, 1);
 		tree_node *stmts_node = get_child(astn, 2);
 
@@ -642,14 +785,14 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		int line_num = id_data->ltk->line_num;
 		char str_line_num[25];
 		sprintf(str_line_num, "%d", line_num);
-		scope_node *new_scope = create_new_scope(curr_scope);
+		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
 		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
 
 		// insert loop var in scope
 		var_id_entry *entry = create_var_entry(id_data->ltk->lexeme, integer, -1, -1);
 		add_to_hash_map(new_scope->var_id_st, id_data->ltk->lexeme, entry);
 
-		int range_indices[2] = get_range_from_node(get_child(range_node));
+		int *range_indices = get_range_from_node(range_node);
 		// TODO: what to do with range here for code generation
 		// and statements (below)
 		//
@@ -660,9 +803,24 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 	}
 
 	if (ast_nt == while_loop) {
-		// TODO: need line_num here to create new scope
+		ast_leaf *while_data = (ast_leaf *) get_data(get_child(astn, 0));
 		tree_node *aobexpr_node = get_child(astn, 0);
 		tree_node *stmts_node = get_child(astn, 1);
+
+		// using line_num to generate key for hash map
+		int line_num = while_data->ltk->line_num;
+		char str_line_num[25];
+		sprintf(str_line_num, "%d", line_num);
+		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
+		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
+
+		// TODO: what to do with aobexpr_node here for code generation
+		// and statements (below)
+		//
+		// ??
+		linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
+		for (int j = 0; j < stmts_ll->num_nodes; j++)
+			symbol_table_fill(main_st, ll_get(stmts_ll, j), new_scope);
 	}
 }
 

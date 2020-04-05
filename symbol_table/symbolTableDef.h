@@ -20,8 +20,7 @@ typedef enum {
 	integer,
 	real,
 	boolean,
-	array,
-	function
+	array
 } id_type;
 
 typedef struct ___VAR_ST_ENTRY___ {
@@ -38,10 +37,13 @@ typedef struct ___ARRAY_ST_ENTRY___ {
 	int range_end;
 	int width; // TODO: after dynamic arrays are discussed
 	int offset;
+	bool is_static;
 } arr_id_entry ;
 
 
 typedef struct ___SCOPE_NODE___ scope_node;
+
+typedef struct ___FUNC_ST_ENTRY___ func_entry;
 
 struct ___SCOPE_NODE___ {
 	hash_map* var_id_st;
@@ -49,9 +51,10 @@ struct ___SCOPE_NODE___ {
 
 	scope_node* parent_scope;
 	hash_map* child_scopes;
+	func_entry* func;
 };
 
-typedef struct ___FUNC_ST_ENTRY___ {
+struct ___FUNC_ST_ENTRY___ {
 	char name[MAX_SYMBOL_LEN];
 	linked_list* input_param_list;
 	linked_list* output_param_list;
@@ -60,7 +63,7 @@ typedef struct ___FUNC_ST_ENTRY___ {
 	bool is_called;
 	int offset;
 	int width;
-} func_entry;
+};
 
 typedef union ___ID_ST_ENTRY___ {
 	var_id_entry *var_entry;
@@ -70,6 +73,7 @@ typedef union ___ID_ST_ENTRY___ {
 typedef struct ___PARAM_NODE___ {
 	bool is_array;
 	id_entry param;
+	bool is_assigned; // for output params
 } param_node;
 
 typedef struct ___COMMON_ID_ENTRY___ {
