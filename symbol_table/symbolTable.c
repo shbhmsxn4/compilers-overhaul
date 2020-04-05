@@ -161,6 +161,10 @@ common_id_entry *param_to_st_entry (param_node *p) {
 }
 
 common_id_entry *find_id_for_decl (char *lexeme, scope_node *curr_scope) {
+	if (curr_scope->loop_var_entry != NULL && strcmp(lexeme, curr_scope->loop_var_entry->lexeme) == 0) {
+		// TODO: loop var not allowed to use err
+	}
+
 	common_id_entry *sentry = find_id_in_scope(lexeme, curr_scope);
 	if (sentry != NULL || curr_scope->parent_scope != NULL) return sentry;
 
@@ -183,6 +187,10 @@ common_id_entry *find_id_for_use (char *lexeme, scope_node *curr_scope) {
 }
 
 common_id_entry *find_id_for_assign (char *lexeme, scope_node *curr_scope) {
+	if (curr_scope->loop_var_entry != NULL && strcmp(lexeme, curr_scope->loop_var_entry->lexeme) == 0) {
+		// TODO: loop var not allowed to use err
+	}
+
 	common_id_entry *rentry = find_id_rec(lexeme, curr_scope);
 	if (rentry != NULL) return rentry;
 
@@ -387,7 +395,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		for (int i = 0; i < op_ll->num_nodes; i++) {
 			param_node *pnode = (param_node *) ll_get(op_ll, i);
 			if (!pnode->is_assigned) {
-				// TODO: unassigned output param
+				// TODO: err unassigned output param
 			}
 		}
 	}
@@ -515,6 +523,10 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 
 		char *func_name = id_data->ltk->lexeme;
 		func_entry *fentry = fetch_from_hash_map(main_st, func_name);
+
+		if (fentry == curr_scope->func) {
+			// TODO: recursion not allowed
+		}
 
 		if (fentry == NULL) {
 			// TODO: undeclared func err
@@ -781,16 +793,19 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		tree_node *range_node = get_child(astn, 1);
 		tree_node *stmts_node = get_child(astn, 2);
 
-		// using line_num to generate key for hash map
-		int line_num = id_data->ltk->line_num;
-		char str_line_num[25];
-		sprintf(str_line_num, "%d", line_num);
+		// new scope
 		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
-		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
 
 		// insert loop var in scope
 		var_id_entry *entry = create_var_entry(id_data->ltk->lexeme, integer, -1, -1);
 		add_to_hash_map(new_scope->var_id_st, id_data->ltk->lexeme, entry);
+		new_scope->loop_var_entry = entry;
+
+		// using line_num to generate key for hash map
+		int line_num = id_data->ltk->line_num;
+		char str_line_num[25];
+		sprintf(str_line_num, "%d", line_num);
+		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
 
 		int *range_indices = get_range_from_node(range_node);
 		// TODO: what to do with range here for code generation

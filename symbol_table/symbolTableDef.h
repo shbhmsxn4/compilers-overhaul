@@ -52,6 +52,7 @@ struct ___SCOPE_NODE___ {
 	scope_node* parent_scope;
 	hash_map* child_scopes;
 	func_entry* func;
+	var_id_entry *loop_var_entry;
 };
 
 struct ___FUNC_ST_ENTRY___ {
