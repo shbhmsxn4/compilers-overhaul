@@ -5,6 +5,7 @@
 
 #define NUM_NT 58
 #define NUM_T 56
+#define MAX_SYMBOL_LEN 25
 
 enum ____TERMINAL____
 {

@@ -10,7 +10,7 @@ typedef struct ____AST_NODE____ ast_node;
 
 struct ____AST_NODE____
 {
-    gm_unit *label;
+    gm_unit label;
     linked_list *ll;
 };
 
@@ -18,7 +18,7 @@ typedef struct ____AST_LEAF____ ast_leaf;
 
 struct ____AST_LEAF____
 {
-    gm_unit *label;
+    gm_unit label;
     lexical_token *ltk;
 };
 

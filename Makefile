@@ -1,9 +1,14 @@
 debug_exe : driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o
 	gcc driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o -o debug_exe
 
+kunal : driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o symbol_table.o
+	gcc driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o -o debug_exe
+
 exe : driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o
 	gcc driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o -o exe
 
+symbol_table.o : ./symbol_table/symbolTableDef.h ./symbol_table/symbolTable.c
+	gcc -c ./symbol_table/symbolTable.c
 terminal_name.o : ./utils/terminal_name.h ./utils/terminal_name.c
 	gcc -c ./utils/terminal_name.c
 
