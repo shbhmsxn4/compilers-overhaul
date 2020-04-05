@@ -130,7 +130,9 @@ enum ____NONTERMINAL____
 	default_nt,
 	value,
 	caseStmts2,
-	range
+	range,
+	input_stmt,					//extra (for semantics only)
+	output_stmt					//extra (for semantics only)
 };
 
 typedef enum ____NONTERMINAL____ nonterminal;
