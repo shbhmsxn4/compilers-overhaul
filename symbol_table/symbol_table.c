@@ -1,4 +1,4 @@
-#include "./symbolTableDef.h"
+#include "./symbol_table_def.h"
 
 #define DEFAULT_ST_SIZE 71
 #define DEFAULT_SCOPE_SIZE 41
@@ -267,10 +267,19 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 
 	nonterminal ast_nt = data_label.gms.nt;
 
+	char ast_nt_name[100];
+	nonterminal_name(ast_nt, ast_nt_name);
+	printf("here %s\n", ast_nt_name);
     if (ast_nt == program) {
 		symbol_table_fill(main_st, get_child(astn, 0), curr_scope);
 		symbol_table_fill(main_st, get_child(astn, 1), curr_scope);
-		symbol_table_fill(main_st, get_child(astn, 2), curr_scope);
+
+		// driver module
+		func_entry *st_entry = (func_entry *) fetch_from_hash_map(main_st, "program");
+		assert(st_entry != NULL, "default entry for driver module not found");
+		st_entry->only_declared = false;
+		symbol_table_fill(main_st, get_child(astn, 2), st_entry->local_scope);
+
 		symbol_table_fill(main_st, get_child(astn, 3), curr_scope);
     }
 
@@ -307,13 +316,15 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 			symbol_table_fill(main_st, ll_get(other_mods, i), curr_scope);
 	}
 
-	if (ast_nt == driverModule) {
-		func_entry *st_entry = (func_entry *) fetch_from_hash_map(main_st, "program");
-		assert(st_entry != NULL, "default entry for driver module not found");
-		st_entry->only_declared = false;
-		//
-		//
-	}
+	/*
+	 *if (ast_nt == driverModule) {
+	 *    func_entry *st_entry = (func_entry *) fetch_from_hash_map(main_st, "program");
+	 *    assert(st_entry != NULL, "default entry for driver module not found");
+	 *    st_entry->only_declared = false;
+	 *    //
+	 *    //
+	 *}
+	 */
 
 	if (ast_nt == module) {
 		// MODULE ID
@@ -398,6 +409,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		f_st_entry->output_param_list = fop_ll;
 
 		// MODULEDEF
+		// TODO: TEMPORARY????
 		symbol_table_fill(main_st, get_child(astn, 3), f_st_entry->local_scope);
 
 		// check if all output params have been assigned
@@ -410,10 +422,23 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 	}
 
 	if (ast_nt == moduleDef) {
+/*
+ *        tree_node *statemens_node = get_child(astn, 0); // TODO: TEMP???
+ *        linked_list *statements = ((ast_node *) get_data(statemens_node))->ll;
+ *
+ *        for (int i = 0; i < statements->num_nodes; i++) {
+ *            symbol_table_fill(main_st, ll_get(statements, i), curr_scope);
+ *        }
+ */
+		symbol_table_fill(main_st, get_child(astn, 0), curr_scope);
+	}
+
+	if (ast_nt == statements) {
 		linked_list *statements = ((ast_node *) get_data(astn))->ll;
 
-		for (int i = 0; i < statements->num_nodes; i++)
+		for (int i = 0; i < statements->num_nodes; i++) {
 			symbol_table_fill(main_st, ll_get(statements, i), curr_scope);
+		}
 	}
 
 	/*ioStmt start*/
@@ -539,6 +564,8 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 
 		if (fentry == NULL) {
 			// TODO: undeclared func err
+			printf("ERR: undeclared module\n");
+			return;
 		}
 
 		// OUTPUT PARAMS - return values
@@ -848,7 +875,8 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 	}
 }
 
-void create_symbol_table (tree_node *astn) {
+void create_symbol_table (tree *ast) {
+	tree_node *astn = get_root(ast);
 	hash_map *main_st = create_hash_map(DEFAULT_ST_SIZE);
 
 	// default entry for driver module

@@ -1,4 +1,7 @@
 #include "parse_table.h"
+#include "../utils/terminal_name.h"
+#include "../utils/nonterminal_name.h"
+#include "../utils/print.h"
 
 parse_table *create_parse_table(int num_rows, int num_cols)
 {
@@ -23,8 +26,15 @@ parse_table *create_parse_table(int num_rows, int num_cols)
 
 void add_to_parse_table(parse_table *pt, gm_rule *rule, int r, int c)
 {
-    assert(pt->matrix[r][c] == NULL || pt->matrix[r][c] == rule, "parse table rule collision didn't occur");
-
+	/*
+	 *char t[100];
+	 *char nt[100];
+	 *terminal_name(c, t);
+	 *nonterminal_name(r, nt);
+	 *print_rule(rule);
+	 *printf("\nhere %s %s\n", nt, t);
+	 */
+	assert(pt->matrix[r][c] == NULL || pt->matrix[r][c] == rule, "parse table rule collision didn't occur");
     pt->matrix[r][c] = rule;
 }
 

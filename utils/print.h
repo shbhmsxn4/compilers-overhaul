@@ -24,4 +24,5 @@ void print_parse_stack(stack *s);
 
 void print_ast_tree(tree *ast);
 
+void print_rule(gm_rule *rule);
 #endif

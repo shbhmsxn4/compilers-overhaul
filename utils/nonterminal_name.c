@@ -178,5 +178,20 @@ void nonterminal_name(nonterminal t, char *name)
     case 57:
         strcpy(name, "range");
         break;
+	case 58:
+        strcpy(name, "input_stmt");
+        break;
+	case 59:
+        strcpy(name, "output_stmt");
+        break;
+	case 60:
+        strcpy(name, "for_loop");
+        break;
+	case 61:
+        strcpy(name, "while_loop");
+        break;
+	case 62:
+        strcpy(name, "caseStmtNode");
+        break;
     }
 }
