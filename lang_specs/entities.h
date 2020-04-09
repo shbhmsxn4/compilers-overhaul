@@ -131,8 +131,11 @@ enum ____NONTERMINAL____
 	value,
 	caseStmts2,
 	range,
-	input_stmt,					//extra (for semantics only)
-	output_stmt					//extra (for semantics only)
+	input_stmt,	 //extra (for semantics only)
+	output_stmt, //extra (for semantics only)
+	for_loop,	 //extra (for semantics only)
+	while_loop,	 //extra (for semantics only)
+	caseStmtNode
 };
 
 typedef enum ____NONTERMINAL____ nonterminal;
@@ -202,9 +205,18 @@ struct ____GRAMMAR_FOLLOW____
 
 typedef struct ____GRAMMAR_FOLLOW____ gm_follow;
 
+struct ____GRAMMAR_RULE____
+{
+	nonterminal lhs;
+	int rhs_len;
+	gm_unit *rhs;
+};
+typedef struct ____GRAMMAR_RULE____ gm_rule;
+
 struct ____PARSE_TREE_NODE____
 {
 	nonterminal nt;
+	gm_rule *rule;
 };
 
 typedef struct ____PARSE_TREE_NODE____ pt_node;

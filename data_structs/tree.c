@@ -45,7 +45,14 @@ void add_child_at(tree_node *n, void *data, int idx)
     tree_node *new_node = (tree_node *)calloc(1, sizeof(tree_node));
 
     new_node->parent = n;
-    new_node->data = data;
+    if (data == NULL)
+    {
+        new_node->data = NULL;
+    }
+    else
+    {
+        new_node->data = data;
+    }
     new_node->num_children = 0;
     new_node->max_children = 1;
     new_node->child = (tree_node **)calloc(1, sizeof(tree_node *));
@@ -63,6 +70,8 @@ void add_child_at(tree_node *n, void *data, int idx)
     }
 
     n->child[idx] = new_node;
+
+    (n->num_children)++;
 }
 
 void add_child(tree_node *n, void *data)
@@ -110,4 +119,21 @@ void *remove_child(tree_node *n, int idx)
     old_node->data = NULL;
     free(old_node);
     return old_data;
+}
+
+void set_data(tree_node *n, void *data)
+{
+    assert(n->data == NULL, "setting tree data on empty node");
+    n->data = data;
+}
+
+tree_node *create_tree_node(void *data)
+{
+    tree_node *new_node = (tree_node *)calloc(1, sizeof(tree_node));
+    new_node->parent = NULL;
+    new_node->data = data;
+    new_node->num_children = 0;
+    new_node->max_children = 1;
+    new_node->child = (tree_node **)calloc(1, sizeof(tree_node *));
+    return new_node;
 }

@@ -42,6 +42,10 @@ tree_node *get_parent(tree_node *n);
 
 void *remove_child(tree_node *n, int idx);
 
+void set_data(tree_node *n, void *data);
+
+tree_node *create_tree_node(void *data);
+
 #endif
 
 /*

@@ -5,13 +5,7 @@
 #ifndef GRAMMAR_H
 #define GRAMMAR_H
 
-struct ____GRAMMAR_RULE____
-{
-    nonterminal lhs;
-    int rhs_len;
-    gm_unit *rhs;
-};
-typedef struct ____GRAMMAR_RULE____ gm_rule;
+
 
 struct ____GRAMMAR____
 {
