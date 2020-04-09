@@ -1,4 +1,7 @@
+#include "../lang_specs/entities.h"
 #include "./symbol_table_def.h"
+#include "../ast/generate_ast.h"
+#include "../data_structs/tree.h"
 
 #define DEFAULT_ST_SIZE 71
 #define DEFAULT_SCOPE_SIZE 41
@@ -90,10 +93,11 @@ func_entry *create_func_entry (char *name, bool only_declared, bool is_called, i
 }
 
 common_id_entry *find_id (char *lexeme, scope_node *curr_scope, bool is_recursive) {
-	common_id_entry *centry = (common_id_entry *) malloc(sizeof(common_id_entry));
+	common_id_entry *centry = NULL;
 
 	var_id_entry *ventry = (var_id_entry *) fetch_from_hash_map(curr_scope->var_id_st, lexeme);
 	if (ventry != NULL) {
+		centry = (common_id_entry *) malloc(sizeof(common_id_entry));
 		centry->is_array = false;
 		centry->entry.var_entry = ventry;
 		return centry;
@@ -101,6 +105,7 @@ common_id_entry *find_id (char *lexeme, scope_node *curr_scope, bool is_recursiv
 
 	arr_id_entry *aentry = (arr_id_entry *) fetch_from_hash_map(curr_scope->arr_st, lexeme);
 	if (aentry != NULL) {
+		centry = (common_id_entry *) malloc(sizeof(common_id_entry));
 		centry->is_array = true;
 		centry->entry.arr_entry = aentry;
 		return centry;
@@ -262,7 +267,6 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 	ast_node* ast_data = (ast_node *)get_data(astn);
 	gm_unit data_label = ast_data->label;
 	
-	assert(!data_label.is_terminal, "ast node for non terminal");
 	int num_children = get_num_children(astn);
 
 	nonterminal ast_nt = data_label.gms.nt;
@@ -441,6 +445,68 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		}
 	}
 
+	if (ast_nt == var_id_num) {
+		int child_cnt = get_num_children(astn);
+		tree_node *var_node = astn;
+		ast_node *var_data = (ast_node *) get_data(astn);
+		if (child_cnt == 1) {
+			// VAR -> NUM, RNUM, TRUE, FALSE
+			tree_node *const_var_node = get_child(var_node, 0);
+			ast_leaf *const_var_data = (ast_leaf *) get_data(const_var_node);
+			var_data->type = const_var_data->type;
+			// TODO: generate ast code to display value of
+			// this constant
+		}
+		else if (child_cnt == 2) {
+			ast_leaf *id_data = (ast_leaf *) get_data(get_child(var_node, 0));
+			tree_node *whichid_node = get_child(var_node, 1);
+			
+			char *var_name = id_data->ltk->lexeme;
+			common_id_entry *entry = find_id_for_use(var_name, curr_scope);
+			if (entry == NULL) {
+				// TODO: undeclared var err
+				printf("undeclared var : %s\n", var_name);
+			}
+			else if (get_data(whichid_node) == NULL) {
+				// VAR -> ID
+				if (entry->is_array) {
+					var_data->type = array;
+					// TODO: assembly code to display all
+					// elements of the array
+				}
+				else {
+					var_data->type = entry->entry.var_entry->type;
+					// TODO: generate ast code to get value of var
+					// and display it
+				}
+			}
+			else {
+				// VAR -> ID WHICHID
+				ast_leaf *whichid_data = (ast_leaf *) get_data(whichid_node);
+				if (!entry->is_array) {
+					// TODO: type err
+				}
+				else {
+					arr_id_entry *aentry = entry->entry.arr_entry;
+
+					var_data->type = aentry->type;
+
+					int check_ret = bound_type_check(aentry, whichid_node);
+					if (check_ret == 1) {
+						// TODO: out of bounds err
+					}
+					else if (check_ret == -1) {
+						// TODO: runtime bound check
+						// here or in bound_check() call???
+					}
+					
+					// TODO: generate ast code to index arr
+					// and display corresponding value
+				}
+			}
+		}
+	}
+
 	/*ioStmt start*/
 	if (ast_nt == input_stmt) {
 		char *var_name = ((ast_leaf *) get_data(get_child(astn, 0)))->ltk->lexeme;
@@ -458,53 +524,60 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 
 	if (ast_nt == output_stmt) {
 		tree_node *var_node = get_child(astn, 0);
-		int child_cnt = get_num_children(var_node);
 		
-		if (child_cnt == 1) {
-			// VAR -> NUM, RNUM, TRUE, FALSE
-			tree_node *const_var_node = get_child(var_node, 0);
-			// TODO: generate ast code to display value of
-			// this constant
+		if (((ast_leaf *) get_data(var_node))->is_leaf) {
+			printf("output stmt printing const\n");
 		}
-		else if (child_cnt == 2) {
-			ast_leaf *id_data = (ast_leaf *) get_data(get_child(var_node, 0));
-			tree_node *whichid_node = get_child(var_node, 1);
-			
-			char *var_name = id_data->ltk->lexeme;
-			common_id_entry *entry = find_id_for_use(var_name, curr_scope);
-			if (get_data(whichid_node) == NULL) {
-				// VAR -> ID
-				if (entry->is_array) {
-					// TODO: assembly code to display all
-					// elements of the array
-				}
-				else {
-					// TODO: generate ast code to get value of var
-					// and display it
-				}
-			}
-			else {
-				// VAR -> ID WHICHID
-				ast_leaf *whichid_data = (ast_leaf *) get_data(whichid_node);
-				if (!entry->is_array) {
-					// TODO: type err
-				}
-				else {
-					arr_id_entry *aentry = entry->entry.arr_entry;
-					int check_ret = bound_type_check(aentry, whichid_node);
-					if (check_ret == 1) {
-						// TODO: out of bounds err
-					}
-					else if (check_ret == -1) {
-						// TODO: runtime bound check
-						// here or in bound_check() call???
-					}
-					
-					// TODO: generate ast code to index arr
-					// and display corresponding value
-				}
-			}
+		else {
+			symbol_table_fill(main_st, var_node, curr_scope);
 		}
+		/*
+		 *if (child_cnt == 1) {
+		 *    // VAR -> NUM, RNUM, TRUE, FALSE
+		 *    tree_node *const_var_node = get_child(var_node, 0);
+		 *    // TODO: generate ast code to display value of
+		 *    // this constant
+		 *}
+		 *else if (child_cnt == 2) {
+		 *    ast_leaf *id_data = (ast_leaf *) get_data(get_child(var_node, 0));
+		 *    tree_node *whichid_node = get_child(var_node, 1);
+		 *    
+		 *    char *var_name = id_data->ltk->lexeme;
+		 *    common_id_entry *entry = find_id_for_use(var_name, curr_scope);
+		 *    if (get_data(whichid_node) == NULL) {
+		 *        // VAR -> ID
+		 *        if (entry->is_array) {
+		 *            // TODO: assembly code to display all
+		 *            // elements of the array
+		 *        }
+		 *        else {
+		 *            // TODO: generate ast code to get value of var
+		 *            // and display it
+		 *        }
+		 *    }
+		 *    else {
+		 *        // VAR -> ID WHICHID
+		 *        ast_leaf *whichid_data = (ast_leaf *) get_data(whichid_node);
+		 *        if (!entry->is_array) {
+		 *            // TODO: type err
+		 *        }
+		 *        else {
+		 *            arr_id_entry *aentry = entry->entry.arr_entry;
+		 *            int check_ret = bound_type_check(aentry, whichid_node);
+		 *            if (check_ret == 1) {
+		 *                // TODO: out of bounds err
+		 *            }
+		 *            else if (check_ret == -1) {
+		 *                // TODO: runtime bound check
+		 *                // here or in bound_check() call???
+		 *            }
+		 *            
+		 *            // TODO: generate ast code to index arr
+		 *            // and display corresponding value
+		 *        }
+		 *    }
+		 *}
+		 */
 	}
 	/*ioStmt end*/
 
@@ -525,6 +598,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 				}
 				else {
 					tree_node *expr_node = get_child(whichstmt_node, 0);
+					symbol_table_fill(main_st, expr_node, curr_scope);
 					// TODO: generate assembly code to compute expr value
 					// and assign it to the id here
 				}
@@ -637,21 +711,27 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		}
 	}
     
-    if (ast_nt == expression)
-    {
-    }
+	if (ast_nt == expression) {
 
-    if (ast_nt == unary_nt)
-    {
-    }
+	}
+
+	/*
+     *if (ast_nt == unary_nt)
+     *{
+     *}
+	 */
 
     if (ast_nt == new_NT)
     {
     }
 
-    if (ast_nt == unary_op)
-    {
-    }
+    /*if (ast_nt == unary_op) {*/
+    if (ast_nt == unary_nt) {
+		ast_leaf *uop = (ast_leaf *) get_data(get_child(astn, 0));
+		printf("unary operator found\n");
+		// TODO: what to do with the unary operator here??
+		symbol_table_fill(main_st, get_child(astn, 1), curr_scope);
+	}
 
     if (ast_nt == arithmeticOrBooleanExpr)
     {
@@ -689,21 +769,48 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
     {
     }
 
-    if (ast_nt == op1)
-    {
-    }
+/*
+ *    if (ast_nt == op1)
+ *    {
+ *    }
+ *
+ *    if (ast_nt == op2)
+ *    {
+ *    }
+ */
 
-    if (ast_nt == op2)
-    {
-    }
+	if (ast_nt == logicalOp || ast_nt == relationalOp || ast_nt == op1 || ast_nt == op2) {
+		tree_node *left_operand = get_child(astn, 0);
+		ast_leaf *left_op_data = (ast_leaf *) get_data(left_operand); // blindly casting to ast_leaf
+																	// thought it might be ast_node
+		if (!left_op_data->is_leaf) symbol_table_fill(main_st, left_operand, curr_scope);
+		else printf("left operand\n");
 
-    if (ast_nt == logicalOp)
-    {
-    }
+		ast_leaf *op_node = (ast_leaf *) get_data(get_child(astn, 1));
+		printf("operator found here\n");
+		
+		tree_node *right_operand = get_child(astn, 2);
+		ast_leaf *right_op_data = (ast_leaf *) get_data(right_operand); // blindly casting to ast_leaf
+																	// thought it might be ast_node
+		if (!right_op_data->is_leaf) symbol_table_fill(main_st, right_operand, curr_scope);
+		else printf("right operand\n");
 
-    if (ast_nt == relationalOp)
-    {
-    }
+		printf("left: %d; right: %d\n", left_op_data->type, right_op_data->type);
+		if (left_op_data->type != right_op_data->type) {
+			printf("type mismatch in expr\n");
+			// TODO:
+		}
+		else {
+			ast_node *astn_data = (ast_node *) get_data(astn);
+			astn_data->type = left_op_data->type;
+		}
+	}
+
+	/*
+     *if (ast_nt == relationalOp)
+     *{
+     *}
+	 */
 
 	if (ast_nt == declareStmt) {
 		linked_list *id_ll = ((ast_node *) get_data(get_child(astn, 0)))->ll;

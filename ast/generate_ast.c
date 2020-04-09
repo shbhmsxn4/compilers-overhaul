@@ -1,3 +1,5 @@
+#include "../symbol_table/symbol_table.h"
+#include "../symbol_table/symbol_table_def.h"
 #include "generate_ast.h"
 
 tree_node *apply_ast_rules(tree_node *ptn, tree_node *astn);
@@ -79,6 +81,7 @@ ast_node *make_ast_node(int label, bool is_terminal)
         n->label.gms.nt = label;
     }
     n->is_leaf = false;
+	n->type = -1;
     return n;
 }
 
@@ -96,6 +99,7 @@ ast_leaf *make_ast_leaf(int label, bool is_terminal, lexical_token *ltk)
     }
     l->ltk = ltk;
     l->is_leaf = true;
+	l->type = terminal_to_type(label);
     return l;
 }
 

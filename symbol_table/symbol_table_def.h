@@ -12,9 +12,7 @@
 #include <stdbool.h>
 #include "../data_structs/hash_map.h"
 #include "../data_structs/linked_list.h"
-#include "../data_structs/tree.h"
 #include "../lang_specs/entities.h"
-#include "../ast/generate_ast.h"
 
 typedef enum {
 	integer,
