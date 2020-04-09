@@ -227,39 +227,39 @@ bool match_array_type (arr_id_entry *arr1, arr_id_entry *arr2) {
 // returns
 // -1 => dynamic bound check required
 // 1 => check done 
-int bound_type_check (arr_id_entry *entry, tree_node *index_nt) {
+int bound_type_check (arr_id_entry *entry, tree_node *index_nt, scope_node *curr_scope) {
 	ast_leaf *index_data = (ast_leaf *) get_data(index_nt);
-	if (entry->is_static) {
-		if (index_data->label.gms.t == NUM) {
+	if (index_data->label.gms.t == NUM) {
+		if (entry->is_static) {
 			// compile time bound check
 			
 			int ind = index_data->ltk->nv.int_val;
-			if (ind >= entry->range_start && ind <= entry->range_end) {
+			if (ind < entry->range_start || ind > entry->range_end) {
+				printf("index out of range - static arr & index\n");
 				// TODO: out of bounds err
 			}
 			return 1;
 		}
 		else {
 			// TODO: run time bound check - arr static but index dynamic
-			
-			if (get_type_from_node(index_nt) != integer) {
-				// TODO: err index should be of type integer
-			}
-			return -1;
+			printf("run time bound check - arr dynamic, index static\n");
 		}
 	}
 	else {
-		if (index_data->label.gms.t == NUM) {
-			// TODO: run time bound check - arr dynamic but index static 
+		char *ind_var_name = ((ast_leaf *) get_data(index_nt))->ltk->lexeme;
+		common_id_entry *ind_entry = find_id_for_use(ind_var_name, curr_scope);
 
-			return -1;
+		if (ind_entry == NULL) {
+			printf("undeclared var : %s\n", ind_var_name);
+			// TODO: 
 		}
-		else {
-			// TODO: run time bound check - arr dynamic but index dynamic
-
-			return -1;
+		else if (ind_entry->is_array || ind_entry->entry.var_entry->type != integer) {
+			printf("index var should be integer\n");
+			// TODO: 
 		}
+		// TODO: run time bound check for dynamic arrs
 	}
+	return -1;
 }
 
 // FIRST AST PASS
@@ -484,6 +484,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 				// VAR -> ID WHICHID
 				ast_leaf *whichid_data = (ast_leaf *) get_data(whichid_node);
 				if (!entry->is_array) {
+					printf("var %s should be arr\n", var_name);
 					// TODO: type err
 				}
 				else {
@@ -491,7 +492,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 
 					var_data->type = aentry->type;
 
-					int check_ret = bound_type_check(aentry, whichid_node);
+					int check_ret = bound_type_check(aentry, whichid_node, curr_scope);
 					if (check_ret == 1) {
 						// TODO: out of bounds err
 					}
@@ -592,35 +593,46 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 			// TODO: undeclared id
 		}
 		else {
+			id_type var_type;
+			tree_node *expr_node;
 			if (whichstmt_data->label.gms.nt == lvalueIDStmt) {
-				if (entry->is_array) {
-					// TODO: type err - should not be array
-				}
-				else {
-					tree_node *expr_node = get_child(whichstmt_node, 0);
-					symbol_table_fill(main_st, expr_node, curr_scope);
-					// TODO: generate assembly code to compute expr value
-					// and assign it to the id here
-				}
+				expr_node = get_child(whichstmt_node, 0);
+
+				if (entry->is_array) var_type = array;
+				else var_type = entry->entry.var_entry->type;
+
+				// TODO: generate assembly code to compute expr value
+				// and assign it to the id here
 			}
 			else if (whichstmt_data->label.gms.nt == lvalueARRStmt) {
 				if (!entry->is_array) {
+					printf("var %s should be arr\n", var_name);
 					// TODO: type err - should be array
 				}
 				else {
 					tree_node *index_node = get_child(whichstmt_node, 0);
-					tree_node *expr_node = get_child(whichstmt_node, 1);
+					expr_node = get_child(whichstmt_node, 1);
 
-					ast_leaf *index_data = (ast_leaf *) get_data(index_node);
-					if (index_data->label.gms.t == NUM) {
-						// TODO:
-					}
-					else if (index_data->label.gms.t == ID) {
-						// TODO:
-					}
+					bound_type_check(entry->entry.arr_entry, index_node, curr_scope);
+					
+					var_type = entry->entry.arr_entry->type;
+
 					// TODO: generate asm code to compute expr
 					// and assign it to array element of given index
 				}
+			}
+
+			symbol_table_fill(main_st, expr_node, curr_scope);
+			ast_node *expr_data = (ast_node *) get_data(expr_node);
+
+			printf("lhs: %d; rhs: %d\n", var_type, expr_data->type);
+			if (expr_data->type == -1) {
+				// TODO: means that the rhs had internal type conflcts
+				// what to do in this case??
+			}
+			if (var_type != expr_data->type) {
+				printf("type err : lhs rhs of assignment dont match\n");
+				// TODO: 
 			}
 		}
 	}
@@ -657,6 +669,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 					char *ret_var_name = ((ast_leaf *) get_data(ret_var_lnode))->ltk->lexeme;
 					common_id_entry *ret_var_entry = find_id_for_assign(ret_var_name, curr_scope);
 					if (ret_var_entry == NULL) {
+						printf("undeclared var : %s\n", ret_var_name);
 						// TODO: undeclared var
 					}
 					else {
@@ -670,6 +683,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 								 ret_var_entry->entry.var_entry->type != op_lnode->param.var_entry->type
 								 )
 						   ) {
+							printf("type mismatch for output params : %s\n", ret_var_name);
 							// TODO: type mismatch between function call and assign
 						}
 					}
@@ -691,6 +705,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 				char *arg_var_name = ((ast_leaf *) get_data(arg_var_lnode))->ltk->lexeme;
 				common_id_entry *arg_var_entry = find_id_for_use(arg_var_name, curr_scope);
 				if (arg_var_entry == NULL) {
+					printf("undeclared var : %s\n", arg_var_name);
 					// TODO: undeclared var
 				}
 				else {
@@ -704,6 +719,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 							 arg_var_entry->entry.var_entry->type != ip_lnode->param.var_entry->type
 							 )
 					   ) {
+						printf("type mismatch for input params : %s\n", arg_var_name);
 						// TODO: type mismatch between function call and assign
 					}
 				}
@@ -728,9 +744,19 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
     /*if (ast_nt == unary_op) {*/
     if (ast_nt == unary_nt) {
 		ast_leaf *uop = (ast_leaf *) get_data(get_child(astn, 0));
-		printf("unary operator found\n");
+		printf("unary operator : %s\n", uop->ltk->lexeme);
+		tree_node *expr_node = get_child(astn, 1);
 		// TODO: what to do with the unary operator here??
-		symbol_table_fill(main_st, get_child(astn, 1), curr_scope);
+		symbol_table_fill(main_st, expr_node, curr_scope);
+
+		ast_node *expr_data = (ast_node *) get_data(expr_node);
+		if (expr_data->type != integer && expr_data->type != real) {
+			printf("type error for unary : should be integer/real\n");
+			// TODO: 
+		}
+		else {
+			((ast_node *) (get_data(astn)))->type = expr_data->type;
+		}
 	}
 
     if (ast_nt == arithmeticOrBooleanExpr)
@@ -795,15 +821,34 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		if (!right_op_data->is_leaf) symbol_table_fill(main_st, right_operand, curr_scope);
 		else printf("right operand\n");
 
+		ast_node *astn_data = (ast_node *) get_data(astn);
+
 		printf("left: %d; right: %d\n", left_op_data->type, right_op_data->type);
-		if (left_op_data->type != right_op_data->type) {
-			printf("type mismatch in expr\n");
-			// TODO:
+		if (left_op_data->type == array || right_op_data->type == array) {
+			printf("type error : array vars cannot be involved in exprs\n");
+		}
+		else if (ast_nt == logicalOp) {
+			if (left_op_data->type != right_op_data->type || left_op_data->type != boolean) {
+				printf("type error : logical operations\n");
+				// TODO:
+			}
+			else {
+				astn_data->type = boolean;
+			}
 		}
 		else {
-			ast_node *astn_data = (ast_node *) get_data(astn);
-			astn_data->type = left_op_data->type;
+			if (left_op_data->type != right_op_data->type || left_op_data->type == boolean) {
+				printf("type mismatch in expr\n");
+				// TODO:
+			}
+			else if (ast_nt == relationalOp) {
+				astn_data->type = boolean;
+			}
+			else {
+				astn_data->type = left_op_data->type;
+			}
 		}
+		
 	}
 
 	/*

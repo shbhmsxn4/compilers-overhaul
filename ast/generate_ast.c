@@ -135,6 +135,8 @@ tree_node *apply_ast_rules(tree_node *ptn, tree_node *astn)
     int num_children = get_num_children(ptn);
     assert(num_children > 0, "ast rule not being applied on a parse tree leaf");
     nonterminal lhs = ((pt_node *)get_data(ptn))->nt;
+	char nt[100];
+	nonterminal_name(lhs, nt);
     gm_unit *rhs;
     int rhs_len = num_children;
     rhs = (gm_unit *)calloc(num_children, sizeof(gm_unit));
@@ -514,7 +516,7 @@ tree_node *apply_ast_rules(tree_node *ptn, tree_node *astn)
             add_child(astn, NULL);
             add_child(astn, NULL);
             apply_ast_rules(get_child(ptn, 0), get_child(astn, 0));
-            apply_ast_rules(get_child(ptn, 2), get_child(astn, 2));
+            apply_ast_rules(get_child(ptn, 2), get_child(astn, 1));
         }
         free(rule->rhs);
     }
