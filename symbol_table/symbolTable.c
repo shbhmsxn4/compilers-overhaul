@@ -23,6 +23,15 @@ id_type get_type_from_node (tree_node *node) {
 				node))->label.gms.t);
 }
 
+int get_width_from_type (id_type t) {
+	switch (t) {
+		case integer : return 4;
+		case real : return 8;
+		case boolean : return 1;
+		default : return -1;
+	}
+}
+
 int* get_range_from_node (tree_node *node) {
 	int *indices = (int *) malloc(2*sizeof(int));
 	ast_leaf *index1 = (ast_leaf *) get_data(get_child(node, 0));
@@ -49,7 +58,7 @@ var_id_entry *create_var_entry (char *lexeme, id_type type, int width, int offse
 	var_id_entry *entry = (var_id_entry *) malloc(sizeof(var_id_entry));
 	strcpy(entry->lexeme, lexeme);
 	entry->type = type;
-	entry->width = width;
+	entry->width = (width != -1) ? width : get_width_from_type(type);
 	entry->offset = offset;
 	return entry;
 }
@@ -60,7 +69,7 @@ arr_id_entry *create_arr_entry (char *lexeme, id_type type, int rstart, int rend
 	entry->type = type;
 	entry->range_start = rstart;
 	entry->range_end = rend;
-	entry->width = width;
+	entry->width = (width != -1) ? width : get_width_from_type(type);
 	entry->offset = offset;
 
 	entry->is_static = (rstart != -1) && (rend != -1);

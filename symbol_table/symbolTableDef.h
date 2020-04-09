@@ -35,8 +35,8 @@ typedef struct ___ARRAY_ST_ENTRY___ {
 	id_type type;
 	int range_start;
 	int range_end;
-	int width; // TODO: after dynamic arrays are discussed
-	int offset;
+	int width; // for arrays, width is the width of single elem
+	int offset; // TODO: after dynamic arrays are discussed
 	bool is_static;
 } arr_id_entry ;
 
