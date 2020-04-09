@@ -2,7 +2,7 @@
 
 lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_num, int char_num);
 
-lexer *create_lexer(char *source_code_filepath, char *dfa_spec_filepath, int buffer_size, int max_retract_margin, int max_lexeme_len)
+lexer *create_lexer(char *source_code_filepath, char *dfa_spec_filepath, int buffer_size, int max_retract_margin, int max_lexeme_len, hash_map *khm)
 {
     lexer *new_lexer = (lexer *)calloc(1, sizeof(lexer));
 
@@ -19,6 +19,8 @@ lexer *create_lexer(char *source_code_filepath, char *dfa_spec_filepath, int buf
     new_lexer->fh = create_file_handler(new_lexer->source_code_filepath, buffer_size, max_retract_margin);
 
     new_lexer->d = parse_dfa(new_lexer->dfa_spec_filepath);
+
+    new_lexer->khm = khm;
 
     return new_lexer;
 }
@@ -43,7 +45,13 @@ lexical_token *get_next_token(lexer *l)
 
     if (c == EOF)
     {
-        return NULL;
+        lexical_token *ltk = calloc(1, sizeof(lexical_token));
+        ltk->t = DOLLAR;
+        ltk->nv.int_val = 0;
+        ltk->line_num = get_line_num(l->fh);
+        ltk->char_num = get_char_num(l->fh);
+        ltk->lexeme = NULL;
+        return ltk;
     }
 
     char *lexeme = (char *)calloc(l->max_lexeme_len, sizeof(char));
@@ -112,11 +120,26 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         // ******** TO IMPLEMENT : ret1savekeywordid ******
         retract(l->fh, 1);
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
-        ltk->t = ID;
-        ltk->lexeme = NULL;
-        ltk->line_num = line_num;
-        ltk->char_num = char_num;
-        ltk->nv.int_val = 0;
+        lexeme[strlen(lexeme) - 1] = '\0';
+        void *hm_result = fetch_from_hash_map(l->khm, lexeme);
+        if (hm_result == NULL)
+        {
+            ltk->t = ID;
+            ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+            strcpy(ltk->lexeme, lexeme);
+            ltk->line_num = line_num;
+            ltk->char_num = char_num;
+            ltk->nv.int_val = 0;
+        }
+        else
+        {
+            terminal t = *((int *)hm_result);
+            ltk->t = t;
+            ltk->lexeme = NULL;
+            ltk->line_num = line_num;
+            ltk->char_num = char_num;
+            ltk->nv.int_val = 0;
+        }
         return ltk;
         break;
     case 4:
@@ -182,15 +205,15 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         ltk->nv.int_val = 0;
         return ltk;
         break;
-    case 16:
-        ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
-        ltk->t = DEF;
-        ltk->lexeme = NULL;
-        ltk->line_num = line_num;
-        ltk->char_num = char_num;
-        ltk->nv.int_val = 0;
-        return ltk;
-        break;
+    // case 16:
+    //     ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
+    //     ltk->t = DEF;
+    //     ltk->lexeme = NULL;
+    //     ltk->line_num = line_num;
+    //     ltk->char_num = char_num;
+    //     ltk->nv.int_val = 0;
+    //     return ltk;
+    //     break;
     case 17:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = MINUS;
@@ -309,15 +332,15 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         ltk->nv.int_val = 0;
         return ltk;
         break;
-    case 35:
-        ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
-        ltk->t = ENDDEF;
-        ltk->lexeme = NULL;
-        ltk->line_num = line_num;
-        ltk->char_num = char_num;
-        ltk->nv.int_val = 0;
-        return ltk;
-        break;
+    // case 35:
+    //     ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
+    //     ltk->t = ENDDEF;
+    //     ltk->lexeme = NULL;
+    //     ltk->line_num = line_num;
+    //     ltk->char_num = char_num;
+    //     ltk->nv.int_val = 0;
+    //     return ltk;
+    //     break;
     case 36:
         retract(l->fh, 1);
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
@@ -349,6 +372,44 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         break;
     case 42:
         return get_next_token(l);
+        break;
+    case 43:
+        ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
+        ltk->t = DRIVERDEF;
+        ltk->lexeme = NULL;
+        ltk->line_num = line_num;
+        ltk->char_num = char_num;
+        ltk->nv.int_val = 0;
+        return ltk;
+        break;
+    case 44:
+        retract(l->fh, 1);
+        ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
+        ltk->t = DEF;
+        ltk->lexeme = NULL;
+        ltk->line_num = line_num;
+        ltk->char_num = char_num;
+        ltk->nv.int_val = 0;
+        return ltk;
+        break;
+    case 45:
+        ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
+        ltk->t = DRIVERENDDEF;
+        ltk->lexeme = NULL;
+        ltk->line_num = line_num;
+        ltk->char_num = char_num;
+        ltk->nv.int_val = 0;
+        return ltk;
+        break;
+    case 46:
+        retract(l->fh, 1);
+        ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
+        ltk->t = ENDDEF;
+        ltk->lexeme = NULL;
+        ltk->line_num = line_num;
+        ltk->char_num = char_num;
+        ltk->nv.int_val = 0;
+        return ltk;
         break;
     default:
         assert(false, "final state action exists");
