@@ -4,6 +4,7 @@
 #include "../data_structs/stack.h"
 #include "../data_structs/grammar.h"
 #include "../data_structs/parse_table.h"
+#include "../utils/print.h"
 
 #ifndef PARSER_H
 #define PARSER_H
