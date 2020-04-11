@@ -127,28 +127,17 @@ common_id_entry *find_id_in_scope (char *lexeme, scope_node *curr_scope) {
 }
 
 param_node *find_id_in_paramsll (char *lexeme, linked_list *pll) {
-	/*common_id_entry *centry = (common_id_entry *) malloc(sizeof(common_id_entry));*/
 	for (int i = 0; i < pll->num_nodes; i++) {
 		param_node *plnode = (param_node *) ll_get(pll, i);
 		if (plnode->is_array) {
 			arr_id_entry *aentry = plnode->param.arr_entry;
 			if (strcmp(lexeme, aentry->lexeme) == 0) {
-				/*
-				 *centry->is_array = true;
-				 *centry->entry = plnode->param;
-				 *break;
-				 */
 				return plnode;
 			}
 		}
 		else {
 			var_id_entry *ventry = plnode->param.var_entry;
 			if (strcmp(lexeme, ventry->lexeme) == 0) {
-				/*
-				 *centry->is_array = false;
-				 *centry->entry = plnode->param;
-				 *break;
-				 */
 				return plnode;
 			}
 		}
@@ -218,6 +207,21 @@ common_id_entry *find_id_for_assign (char *lexeme, scope_node *curr_scope) {
 	return param_to_st_entry(ip);
 }
 
+common_id_entry *find_id_for (char *lexeme, scope_node *curr_scope, reason_flag need_for) {
+	common_id_entry *ret;
+	switch (need_for) {
+		case for_decl : ret = find_id_for_decl(lexeme, curr_scope);
+						break;
+		case for_use : ret = find_id_for_use(lexeme, curr_scope);
+					   break;
+		case for_assign : ret = find_id_for_assign(lexeme, curr_scope);
+						  break;
+		default : assert(false, "invalid need_for reason flag\n");
+				  ret = NULL;
+	}
+	return ret;
+}
+
 bool match_array_type (arr_id_entry *arr1, arr_id_entry *arr2) {
 	return (arr1->type == arr2->type &&
 		arr1->range_start == arr2->range_start &&
@@ -227,8 +231,7 @@ bool match_array_type (arr_id_entry *arr1, arr_id_entry *arr2) {
 // returns
 // -1 => dynamic bound check required
 // 1 => check done 
-int bound_type_check (arr_id_entry *entry, tree_node *index_nt, scope_node *curr_scope) {
-	ast_leaf *index_data = (ast_leaf *) get_data(index_nt);
+int bound_type_check (arr_id_entry *entry, ast_leaf *index_data, scope_node *curr_scope) {
 	if (index_data->label.gms.t == NUM) {
 		if (entry->is_static) {
 			// compile time bound check
@@ -246,7 +249,7 @@ int bound_type_check (arr_id_entry *entry, tree_node *index_nt, scope_node *curr
 		}
 	}
 	else {
-		char *ind_var_name = ((ast_leaf *) get_data(index_nt))->ltk->lexeme;
+		char *ind_var_name = index_data->ltk->lexeme;
 		common_id_entry *ind_entry = find_id_for_use(ind_var_name, curr_scope);
 
 		if (ind_entry == NULL) {
@@ -260,6 +263,57 @@ int bound_type_check (arr_id_entry *entry, tree_node *index_nt, scope_node *curr
 		// TODO: run time bound check for dynamic arrs
 	}
 	return -1;
+}
+
+common_id_entry *type_check_var (ast_leaf *id_data, ast_leaf *index_node, scope_node *curr_scope, reason_flag need_for) {
+	char *var_name = id_data->ltk->lexeme;
+	common_id_entry *entry = find_id_for_assign(var_name, curr_scope);
+	if (entry == NULL) {
+		printf("undeclared var : %s\n", var_name);
+		// TODO: undeclared id
+	}
+	else if (index_node != NULL) {
+		if (!entry->is_array) {
+			printf("var %s should be arr\n", var_name);
+			// TODO: type err - should be array
+		}
+		else {
+			arr_id_entry *aentry = entry->entry.arr_entry;
+			bound_type_check(aentry, index_node, curr_scope);
+			
+			// TODO: generate asm code to compute expr
+			// and assign it to array element of given index
+		}
+	}
+	return entry;
+}
+
+// indexed => gives array elems type
+id_type type_from_entry (common_id_entry *entry, bool indexed) {
+	if (entry == NULL) return -1;
+	if (entry->is_array) {
+		if (indexed) return entry->entry.arr_entry->type;
+		else return array;
+	}
+	else {
+		return entry->entry.var_entry->type;
+	}
+}
+
+bool is_same_type (common_id_entry *a, common_id_entry *b) {
+	if (a->is_array != b->is_array) return false;
+	else if (a->is_array) {
+		arr_id_entry *aentry = a->entry.arr_entry;
+		arr_id_entry *bentry = b->entry.arr_entry;
+		return (aentry->type == bentry->type &&
+				aentry->range_start == bentry->range_start &&
+				aentry->range_end == bentry->range_end);
+	}
+	else {
+		var_id_entry *aentry = a->entry.var_entry;
+		var_id_entry *bentry = b->entry.var_entry;
+		return (aentry->type == bentry->type);
+	}
 }
 
 // FIRST AST PASS
@@ -320,16 +374,6 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 			symbol_table_fill(main_st, ll_get(other_mods, i), curr_scope);
 	}
 
-	/*
-	 *if (ast_nt == driverModule) {
-	 *    func_entry *st_entry = (func_entry *) fetch_from_hash_map(main_st, "program");
-	 *    assert(st_entry != NULL, "default entry for driver module not found");
-	 *    st_entry->only_declared = false;
-	 *    //
-	 *    //
-	 *}
-	 */
-
 	if (ast_nt == module) {
 		// MODULE ID
 		tree_node* module_id_node = get_child(astn, 0);
@@ -341,17 +385,19 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		func_entry *f_st_entry = (func_entry *) fetch_from_hash_map(main_st, func_name);
 		if (f_st_entry == NULL) {
 			f_st_entry = create_func_entry(func_name, false, false, -1, -1);
-			add_to_hash_map(main_st, func_name, f_st_entry);
+			/*add_to_hash_map(main_st, func_name, f_st_entry);*/
 		}
-		else if (f_st_entry->only_declared && f_st_entry->is_called) {
-			f_st_entry->only_declared = false;
-		}
-		else if (f_st_entry->only_declared && !f_st_entry->is_called) {
-			// TODO: redundant declaration, only definition required
-		}
-		else {
-			// TODO: module redefinition error
-		}
+		/*
+		 *else if (f_st_entry->only_declared && f_st_entry->is_called) {
+		 *    f_st_entry->only_declared = false;
+		 *}
+		 *else if (f_st_entry->only_declared && !f_st_entry->is_called) {
+		 *    // TODO: redundant declaration, only definition required
+		 *}
+		 *else {
+		 *    // TODO: module redefinition error
+		 *}
+		 */
 
 		// MODULE INPUT PARAM LIST
 		tree_node* module_iplist = get_child(astn, 1);
@@ -404,7 +450,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 			tree_node *param_type = get_child(param, 1);
 			id_type type_param = get_type_from_node(param_type);
 
-			fparam->is_array = false;
+			fparam->is_array = false; // output param cannot be array
 			fparam->is_assigned = false;
 			fparam->param.var_entry = create_var_entry(param_id->ltk->lexeme, type_param, -1, -1);
 
@@ -412,28 +458,23 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		}
 		f_st_entry->output_param_list = fop_ll;
 
+		add_to_hash_map(main_st, func_name, f_st_entry);
+
 		// MODULEDEF
 		// TODO: TEMPORARY????
 		symbol_table_fill(main_st, get_child(astn, 3), f_st_entry->local_scope);
 
 		// check if all output params have been assigned
-		for (int i = 0; i < op_ll->num_nodes; i++) {
-			param_node *pnode = (param_node *) ll_get(op_ll, i);
+		for (int i = 0; i < f_st_entry->output_param_list->num_nodes; i++) {
+			param_node *pnode = (param_node *) ll_get(fop_ll, i);
 			if (!pnode->is_assigned) {
+				printf("output params need to be assigned value\n");
 				// TODO: err unassigned output param
 			}
 		}
 	}
 
 	if (ast_nt == moduleDef) {
-/*
- *        tree_node *statemens_node = get_child(astn, 0); // TODO: TEMP???
- *        linked_list *statements = ((ast_node *) get_data(statemens_node))->ll;
- *
- *        for (int i = 0; i < statements->num_nodes; i++) {
- *            symbol_table_fill(main_st, ll_get(statements, i), curr_scope);
- *        }
- */
 		symbol_table_fill(main_st, get_child(astn, 0), curr_scope);
 	}
 
@@ -460,67 +501,22 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		else if (child_cnt == 2) {
 			ast_leaf *id_data = (ast_leaf *) get_data(get_child(var_node, 0));
 			tree_node *whichid_node = get_child(var_node, 1);
-			
-			char *var_name = id_data->ltk->lexeme;
-			common_id_entry *entry = find_id_for_use(var_name, curr_scope);
-			if (entry == NULL) {
-				// TODO: undeclared var err
-				printf("undeclared var : %s\n", var_name);
-			}
-			else if (get_data(whichid_node) == NULL) {
-				// VAR -> ID
-				if (entry->is_array) {
-					var_data->type = array;
-					// TODO: assembly code to display all
-					// elements of the array
-				}
-				else {
-					var_data->type = entry->entry.var_entry->type;
-					// TODO: generate ast code to get value of var
-					// and display it
-				}
-			}
-			else {
-				// VAR -> ID WHICHID
-				ast_leaf *whichid_data = (ast_leaf *) get_data(whichid_node);
-				if (!entry->is_array) {
-					printf("var %s should be arr\n", var_name);
-					// TODO: type err
-				}
-				else {
-					arr_id_entry *aentry = entry->entry.arr_entry;
+			ast_leaf *whichid_data = (ast_leaf *) get_data(whichid_node);
 
-					var_data->type = aentry->type;
-
-					int check_ret = bound_type_check(aentry, whichid_node, curr_scope);
-					if (check_ret == 1) {
-						// TODO: out of bounds err
-					}
-					else if (check_ret == -1) {
-						// TODO: runtime bound check
-						// here or in bound_check() call???
-					}
-					
-					// TODO: generate ast code to index arr
-					// and display corresponding value
-				}
-			}
+			common_id_entry *id_entry = type_check_var(id_data, whichid_data, curr_scope, for_use);
+			var_data->type = type_from_entry(id_entry, whichid_data != NULL);
 		}
 	}
 
 	/*ioStmt start*/
 	if (ast_nt == input_stmt) {
-		char *var_name = ((ast_leaf *) get_data(get_child(astn, 0)))->ltk->lexeme;
-		common_id_entry *entry = find_id_for_use(var_name, curr_scope);
-		if (entry == NULL) {
-			// TODO: variable not declared
-		}
-		else {
-			// TODO:
-			// generate assembly code to take input
-			// and store at corresponding offset
-			// taken from ST
-		}
+		ast_leaf *id_data = (ast_leaf *) get_data(get_child(astn, 0)); 
+		type_check_var(id_data, NULL, curr_scope, for_assign);
+		
+		// TODO:
+		// generate assembly code to take input
+		// and store at corresponding offset
+		// taken from ST
 	}
 
 	if (ast_nt == output_stmt) {
@@ -532,53 +528,6 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		else {
 			symbol_table_fill(main_st, var_node, curr_scope);
 		}
-		/*
-		 *if (child_cnt == 1) {
-		 *    // VAR -> NUM, RNUM, TRUE, FALSE
-		 *    tree_node *const_var_node = get_child(var_node, 0);
-		 *    // TODO: generate ast code to display value of
-		 *    // this constant
-		 *}
-		 *else if (child_cnt == 2) {
-		 *    ast_leaf *id_data = (ast_leaf *) get_data(get_child(var_node, 0));
-		 *    tree_node *whichid_node = get_child(var_node, 1);
-		 *    
-		 *    char *var_name = id_data->ltk->lexeme;
-		 *    common_id_entry *entry = find_id_for_use(var_name, curr_scope);
-		 *    if (get_data(whichid_node) == NULL) {
-		 *        // VAR -> ID
-		 *        if (entry->is_array) {
-		 *            // TODO: assembly code to display all
-		 *            // elements of the array
-		 *        }
-		 *        else {
-		 *            // TODO: generate ast code to get value of var
-		 *            // and display it
-		 *        }
-		 *    }
-		 *    else {
-		 *        // VAR -> ID WHICHID
-		 *        ast_leaf *whichid_data = (ast_leaf *) get_data(whichid_node);
-		 *        if (!entry->is_array) {
-		 *            // TODO: type err
-		 *        }
-		 *        else {
-		 *            arr_id_entry *aentry = entry->entry.arr_entry;
-		 *            int check_ret = bound_type_check(aentry, whichid_node);
-		 *            if (check_ret == 1) {
-		 *                // TODO: out of bounds err
-		 *            }
-		 *            else if (check_ret == -1) {
-		 *                // TODO: runtime bound check
-		 *                // here or in bound_check() call???
-		 *            }
-		 *            
-		 *            // TODO: generate ast code to index arr
-		 *            // and display corresponding value
-		 *        }
-		 *    }
-		 *}
-		 */
 	}
 	/*ioStmt end*/
 
@@ -587,52 +536,43 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		tree_node *whichstmt_node = get_child(astn, 1);
 		ast_node *whichstmt_data = (ast_node *) get_data(whichstmt_node);
 		
-		char *var_name = id_data->ltk->lexeme;
-		common_id_entry *entry = find_id_for_assign(var_name, curr_scope);
-		if (entry == NULL) {
-			// TODO: undeclared id
+		common_id_entry *id_entry;
+		id_type var_type;
+		tree_node *expr_node;
+		if (whichstmt_data->label.gms.nt == lvalueIDStmt) {
+			expr_node = get_child(whichstmt_node, 0);
+			id_entry = type_check_var(id_data, NULL, curr_scope, for_assign);
+			var_type = type_from_entry(id_entry, false);
+
+			// TODO: generate assembly code to compute expr value
+			// and assign it to the id here
 		}
-		else {
-			id_type var_type;
-			tree_node *expr_node;
-			if (whichstmt_data->label.gms.nt == lvalueIDStmt) {
-				expr_node = get_child(whichstmt_node, 0);
+		else if (whichstmt_data->label.gms.nt == lvalueARRStmt) {
+			tree_node *index_node = get_child(whichstmt_node, 0);
+			ast_leaf *index_data = (ast_leaf *) get_data(index_node);
+			id_entry = type_check_var(id_data, index_data, curr_scope, for_assign);
+			var_type = type_from_entry(id_entry, true);
+			expr_node = get_child(whichstmt_node, 1);
+		}
 
-				if (entry->is_array) var_type = array;
-				else var_type = entry->entry.var_entry->type;
+		symbol_table_fill(main_st, expr_node, curr_scope);
+		ast_node *expr_data = (ast_node *) get_data(expr_node);
 
-				// TODO: generate assembly code to compute expr value
-				// and assign it to the id here
-			}
-			else if (whichstmt_data->label.gms.nt == lvalueARRStmt) {
-				if (!entry->is_array) {
-					printf("var %s should be arr\n", var_name);
-					// TODO: type err - should be array
-				}
-				else {
-					tree_node *index_node = get_child(whichstmt_node, 0);
-					expr_node = get_child(whichstmt_node, 1);
+		printf("lhs: %d; rhs: %d\n", var_type, expr_data->type);
+		if (expr_data->type == -1) {
+			// TODO: means that the rhs had internal type conflcts
+			// what to do in this case??
+		}
 
-					bound_type_check(entry->entry.arr_entry, index_node, curr_scope);
-					
-					var_type = entry->entry.arr_entry->type;
-
-					// TODO: generate asm code to compute expr
-					// and assign it to array element of given index
-				}
-			}
-
-			symbol_table_fill(main_st, expr_node, curr_scope);
-			ast_node *expr_data = (ast_node *) get_data(expr_node);
-
-			printf("lhs: %d; rhs: %d\n", var_type, expr_data->type);
-			if (expr_data->type == -1) {
-				// TODO: means that the rhs had internal type conflcts
-				// what to do in this case??
-			}
-			if (var_type != expr_data->type) {
-				printf("type err : lhs rhs of assignment dont match\n");
-				// TODO: 
+		if (var_type != expr_data->type) {
+			printf("type err : lhs rhs of assignment dont match\n");
+			// TODO: 
+		}
+		else if (expr_data->type == array) {
+			char *rhs_arr_name = ((ast_leaf *) get_data(get_child(expr_node, 0)))->ltk->lexeme;
+			common_id_entry *rhs_entry = find_id_for_use(rhs_arr_name, curr_scope);
+			if (!is_same_type(id_entry, rhs_entry)) {
+				printf("type err : lhs rhs of assignment dont match (arrays)\n");
 			}
 		}
 	}
@@ -674,15 +614,8 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 					}
 					else {
 						param_node *op_lnode = (param_node *) ll_get(op_ll, i);
-						if (
-								(ret_var_entry->is_array != op_lnode->is_array) ||
-								(ret_var_entry->is_array && 
-								 !match_array_type(ret_var_entry->entry.arr_entry, op_lnode->param.arr_entry)
-								 ) ||
-								(!ret_var_entry->is_array &&
-								 ret_var_entry->entry.var_entry->type != op_lnode->param.var_entry->type
-								 )
-						   ) {
+						common_id_entry *op_lentry = param_to_st_entry(op_lnode);
+						if (!is_same_type(ret_var_entry, op_lentry)) {
 							printf("type mismatch for output params : %s\n", ret_var_name);
 							// TODO: type mismatch between function call and assign
 						}
@@ -710,15 +643,8 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 				}
 				else {
 					param_node *ip_lnode = (param_node *) ll_get(ip_ll, i);
-					if (
-							(arg_var_entry->is_array != ip_lnode->is_array) ||
-							(arg_var_entry->is_array && 
-							 !match_array_type(arg_var_entry->entry.arr_entry, ip_lnode->param.arr_entry)
-							 ) ||
-							(!arg_var_entry->is_array &&
-							 arg_var_entry->entry.var_entry->type != ip_lnode->param.var_entry->type
-							 )
-					   ) {
+					common_id_entry *ip_lentry = param_to_st_entry(ip_lnode);
+					if (!is_same_type(arg_var_entry, ip_lentry)) {
 						printf("type mismatch for input params : %s\n", arg_var_name);
 						// TODO: type mismatch between function call and assign
 					}
@@ -727,21 +653,6 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		}
 	}
     
-	if (ast_nt == expression) {
-
-	}
-
-	/*
-     *if (ast_nt == unary_nt)
-     *{
-     *}
-	 */
-
-    if (ast_nt == new_NT)
-    {
-    }
-
-    /*if (ast_nt == unary_op) {*/
     if (ast_nt == unary_nt) {
 		ast_leaf *uop = (ast_leaf *) get_data(get_child(astn, 0));
 		printf("unary operator : %s\n", uop->ltk->lexeme);
@@ -758,52 +669,6 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 			((ast_node *) (get_data(astn)))->type = expr_data->type;
 		}
 	}
-
-    if (ast_nt == arithmeticOrBooleanExpr)
-    {
-    }
-
-    if (ast_nt == arithmeticOrBooleanExpr2)
-    {
-    }
-
-    if (ast_nt == AnyTerm)
-    {
-    }
-
-    if (ast_nt == AnyTerm2)
-    {
-    }
-
-    if (ast_nt == arithmeticExpr)
-    {
-    }
-
-    if (ast_nt == arithmeticExpr2)
-    {
-    }
-
-    if (ast_nt == term)
-    {
-    }
-
-    if (ast_nt == term2)
-    {
-    }
-
-    if (ast_nt == factor)
-    {
-    }
-
-/*
- *    if (ast_nt == op1)
- *    {
- *    }
- *
- *    if (ast_nt == op2)
- *    {
- *    }
- */
 
 	if (ast_nt == logicalOp || ast_nt == relationalOp || ast_nt == op1 || ast_nt == op2) {
 		tree_node *left_operand = get_child(astn, 0);
@@ -851,12 +716,6 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 		
 	}
 
-	/*
-     *if (ast_nt == relationalOp)
-     *{
-     *}
-	 */
-
 	if (ast_nt == declareStmt) {
 		linked_list *id_ll = ((ast_node *) get_data(get_child(astn, 0)))->ll;
 		tree_node *dtype_node = get_child(astn, 1);
@@ -868,6 +727,7 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 			char *id_var_name = ((ast_leaf *) get_data(id_lnode))->ltk->lexeme;
 			common_id_entry *id_var_entry = find_id_for_decl(id_var_name, curr_scope);
 			if (id_var_entry != NULL) {
+				printf("redeclaration: %s\n", id_var_name);
 				// TODO: redeclaration error 
 			}
 			else {
@@ -893,82 +753,153 @@ void symbol_table_fill (hash_map *main_st, tree_node *astn, scope_node *curr_sco
 
 	if (ast_nt == condionalStmt) {
 		tree_node *id_node = get_child(astn, 0);
+		ast_leaf *id_data = (ast_leaf *) get_data(id_node);
 		tree_node *casestmt_node = get_child(astn, 1);
 		tree_node *default_node = get_child(astn, 2);
+		ast_leaf *default_data = (ast_leaf *) get_data(default_node);
 		linked_list *casestmts_ll = ((ast_node *) get_data(casestmt_node))->ll;
 
 		// using line_num to generate key for hash map
-		int line_num = ((ast_leaf *) get_data(id_node))->ltk->line_num;
+		int line_num = id_data->ltk->line_num;
 		char str_line_num[25];
 		sprintf(str_line_num, "%d", line_num);
 		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
 		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
 
-		id_type var_type = get_type_from_node(id_node);
+		common_id_entry *entry = type_check_var(id_data, NULL, new_scope, for_use);
+		id_type var_type = type_from_entry(entry, false);
 		if (var_type == real || var_type == array) {
+			printf("switch var should be int or bool\n");
 			// TODO: type err switch var cant be these
 		}
-		else if (var_type == integer) {
-			for (int i = 0; i < casestmts_ll->num_nodes; i++) {
-				tree_node *cstmt_node = (tree_node *) ll_get(casestmts_ll, i);
-				tree_node *val_node = get_child(cstmt_node, 0);
-				tree_node *stmts_node = get_child(cstmt_node, 1);
 
-				id_type val_type = get_type_from_node(val_node); // can only boolean or integer
-																// because of grammar
-				if (val_type != integer) {
-					// TODO: type error, should be integer
-				}
-
-				linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
-				for (int j = 0; j < stmts_ll->num_nodes; j++)
-					symbol_table_fill(main_st, ll_get(stmts_ll, j), new_scope);
-			}
-
-			if (get_data(default_node) == NULL) {
-				// TODO: err required default stmt
-			}
-			else {
-
-			}
-		}
-		else if (var_type == boolean) {
-			if (casestmts_ll->num_nodes != 2) {
+		int casestmts_cnt = casestmts_ll->num_nodes;
+		if (var_type == boolean) {
+			if (casestmts_cnt != 2) {
+				printf("switch with boolean var should have exactly 2 case stmts\n");
 				// TODO: err need exactly 2 case stmts (true/false)
 			}
+			casestmts_cnt = (casestmts_cnt < 2) ? casestmts_cnt : 2;
+		}
 
-			bool got_true = false, got_false = false;
-			for (int i = 0; i < 2 && i < casestmts_ll->num_nodes; i++) {
-				tree_node *cstmt_node = (tree_node *) ll_get(casestmts_ll, i);
-				tree_node *val_node = get_child(cstmt_node, 0);
-				tree_node *stmts_node = get_child(cstmt_node, 1);
+		bool got_true = false, got_false = false;
+		for (int i = 0; i < casestmts_cnt; i++) {
+			tree_node *cstmt_node = (tree_node *) ll_get(casestmts_ll, i);
+			tree_node *val_node = get_child(cstmt_node, 0);
+			tree_node *stmts_node = get_child(cstmt_node, 1);
 
-				id_type val_type = get_type_from_node(val_node); // can only boolean or integer
-																// because of grammar
-				if (val_type != boolean) {
-					// TODO: type error, should be integer
-				}
-
+			id_type val_type = get_type_from_node(val_node); // can only boolean or integer
+															// because of grammar
+			if (val_type != var_type) {
+				printf("incorrect case var type\n");
+				// TODO: type error, should be integer
+			}
+			else if (val_type == boolean) {
 				terminal val_term = ((ast_leaf *) get_data(val_node))->label.gms.t;
 				got_true |= (val_term == TRUE);
 				got_false |= (val_term == FALSE);
-
-				linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
-				for (int j = 0; j < stmts_ll->num_nodes; j++)
-					symbol_table_fill(main_st, ll_get(stmts_ll, j), new_scope);
 			}
 
+			linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
+			for (int j = 0; j < stmts_ll->num_nodes; j++)
+				symbol_table_fill(main_st, ll_get(stmts_ll, j), new_scope);
+		}
+
+		if (var_type == integer) {
+			if (default_data == NULL) {
+				printf("default stmt required\n");
+				// TODO: err required default stmt
+			}
+		}
+		else if (var_type == boolean) {
 			if (!got_true || !got_false) {
+				printf("switch for bool should have both true and false cases\n");
 				// TODO: true false both cases required
 			}
 
-			if (get_data(default_node) != NULL) {
+			if (default_data != NULL) {
+				printf("default stmt should not be here\n");
 				// TODO: err should not have default stmt
 			}
 		}
-		else {
-			// TODO: unknown err
+
+		if (default_data != NULL) {
+			tree_node *stmts_node = get_child(default_node, 0);
+
+			linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
+			for (int j = 0; j < stmts_ll->num_nodes; j++)
+				symbol_table_fill(main_st, ll_get(stmts_ll, j), new_scope);
 		}
+
+/*
+ *        if (var_type == integer) {
+ *            for (int i = 0; i < casestmts_ll->num_nodes; i++) {
+ *                tree_node *cstmt_node = (tree_node *) ll_get(casestmts_ll, i);
+ *                tree_node *val_node = get_child(cstmt_node, 0);
+ *                tree_node *stmts_node = get_child(cstmt_node, 1);
+ *
+ *                id_type val_type = get_type_from_node(val_node); // can only boolean or integer
+ *                                                                // because of grammar
+ *                if (val_type != integer) {
+ *                    printf("case should have integer only\n");
+ *                    // TODO: type error, should be integer
+ *                }
+ *
+ *                linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
+ *                for (int j = 0; j < stmts_ll->num_nodes; j++)
+ *                    symbol_table_fill(main_st, ll_get(stmts_ll, j), new_scope);
+ *            }
+ *
+ *            if (get_data(default_node) == NULL) {
+ *                printf("default stmt required\n");
+ *                // TODO: err required default stmt
+ *            }
+ *            else {
+ *
+ *            }
+ *        }
+ */
+/*
+ *        else if (var_type == boolean) {
+ *            if (casestmts_ll->num_nodes != 2) {
+ *                // TODO: err need exactly 2 case stmts (true/false)
+ *            }
+ *
+ *            bool got_true = false, got_false = false;
+ *            for (int i = 0; i < 2 && i < casestmts_ll->num_nodes; i++) {
+ *                tree_node *cstmt_node = (tree_node *) ll_get(casestmts_ll, i);
+ *                tree_node *val_node = get_child(cstmt_node, 0);
+ *                tree_node *stmts_node = get_child(cstmt_node, 1);
+ *
+ *                id_type val_type = get_type_from_node(val_node); // can only boolean or integer
+ *                                                                // because of grammar
+ *                if (val_type != boolean) {
+ *                    // TODO: type error, should be integer
+ *                }
+ *
+ *                terminal val_term = ((ast_leaf *) get_data(val_node))->label.gms.t;
+ *                got_true |= (val_term == TRUE);
+ *                got_false |= (val_term == FALSE);
+ *
+ *                linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
+ *                for (int j = 0; j < stmts_ll->num_nodes; j++)
+ *                    symbol_table_fill(main_st, ll_get(stmts_ll, j), new_scope);
+ *            }
+ *
+ *            if (!got_true || !got_false) {
+ *                // TODO: true false both cases required
+ *            }
+ *
+ *            if (get_data(default_node) != NULL) {
+ *                // TODO: err should not have default stmt
+ *            }
+ *        }
+ */
+		/*
+		 *else {
+		 *    // TODO: unknown err
+		 *}
+		 */
 
 		//
 		// code gen

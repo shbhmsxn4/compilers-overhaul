@@ -80,4 +80,10 @@ typedef struct ___COMMON_ID_ENTRY___ {
 	id_entry entry;
 } common_id_entry;
 
+typedef enum {
+	for_decl,
+	for_use,
+	for_assign
+} reason_flag;
+
 #endif
