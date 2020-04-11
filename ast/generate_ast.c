@@ -1659,7 +1659,7 @@ tree_node *apply_ast_rules(tree_node *ptn, tree_node *astn)
 
         init_rule_rhs(rule, 7);
         rule->lhs = iterativeStmt;
-        add_rule_rhs(rule, 0, while_loop, false);
+        add_rule_rhs(rule, 0, WHILE, true);
         add_rule_rhs(rule, 1, BO, true);
         add_rule_rhs(rule, 2, arithmeticOrBooleanExpr, false);
         add_rule_rhs(rule, 3, BC, true);
@@ -1668,12 +1668,15 @@ tree_node *apply_ast_rules(tree_node *ptn, tree_node *astn)
         add_rule_rhs(rule, 6, END, true);
         if (ast_rule_matches(rule, (pt_node *)get_data(ptn)))
         {
-            ast_node *n = make_ast_node(WHILE, true);
+            ast_node *n = make_ast_node(while_loop, false);
             set_data(astn, (void *)n);
+            lexical_token *ltk = ((pt_leaf *)get_data(get_child(ptn, 0)))->lt;
+            ast_leaf *l = make_ast_leaf(WHILE, true, ltk);
+            add_child(astn, (void *)l);
             add_child(astn, NULL);
             add_child(astn, NULL);
-            apply_ast_rules(get_child(ptn, 2), get_child(astn, 0));
-            apply_ast_rules(get_child(ptn, 5), get_child(astn, 1));
+            apply_ast_rules(get_child(ptn, 2), get_child(astn, 1));
+            apply_ast_rules(get_child(ptn, 5), get_child(astn, 2));
         }
         free(rule->rhs);
     }

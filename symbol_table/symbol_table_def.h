@@ -58,7 +58,8 @@ struct ___FUNC_ST_ENTRY___ {
 	linked_list* input_param_list;
 	linked_list* output_param_list;
 	scope_node* local_scope;
-	bool only_declared;
+	bool is_declared;
+	bool is_defined;
 	bool is_called;
 	int offset;
 	int width;

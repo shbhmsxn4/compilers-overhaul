@@ -1,11 +1,14 @@
 debug_exe : driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o
 	gcc driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o -o debug_exe
 
-kunal : driver.o lexer.o symbol_table.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o
-	gcc driver.o lexer.o symbol_table.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o -o debug_exe
+kunal : driver.o lexer.o symbol_table.o semantics.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o
+	gcc driver.o lexer.o symbol_table.o semantics.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o -o debug_exe
 
 symbol_table.o : ./symbol_table/symbol_table_def.h ./symbol_table/symbol_table.h ./symbol_table/symbol_table.c
 	gcc -c ./symbol_table/symbol_table.c
+
+semantics.o : ./semantic_analyzer/semantics.h ./semantic_analyzer/semantics.c
+	gcc -c ./semantic_analyzer/semantics.c
 
 exe : driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o
 	gcc driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o -o exe
