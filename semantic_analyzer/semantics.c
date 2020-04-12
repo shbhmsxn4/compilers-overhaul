@@ -1,4 +1,6 @@
 #include "../symbol_table/symbol_table.h"
+#include "../utils/terminal_name.h"
+
 
 // FIRST AST PASS
 void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
@@ -42,7 +44,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		char *func_name = module_id_data->ltk->lexeme;
 		func_entry *f_st_entry = (func_entry *) fetch_from_hash_map(main_st, func_name);
 		if (f_st_entry == NULL) {
-			f_st_entry = create_func_entry(func_name, true, false, false, -1, -1);
+			f_st_entry = create_func_entry(func_name, true, false, false, -1, 0);
 			add_to_hash_map(main_st, func_name, f_st_entry);
 		}
 		else {
@@ -70,7 +72,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		func_entry *f_st_entry = (func_entry *) fetch_from_hash_map(main_st, func_name);
 		bool entry_exists = true;
 		if (f_st_entry == NULL) {
-			f_st_entry = create_func_entry(func_name, false, true, false, -1, -1);
+			f_st_entry = create_func_entry(func_name, false, true, false, -1, 0);
 			entry_exists = false;
 			/*add_to_hash_map(main_st, func_name, f_st_entry);*/
 		}
@@ -114,10 +116,20 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 						range_indices[0],
 						range_indices[1],
 						-1, -1);
+
+				arr_assign_offset(fparam->param.arr_entry, f_st_entry);
+
+				// TEMP
+				arr_id_entry *entry = fparam->param.arr_entry;
 			}
 			else {
 				fparam->is_array = false;
 				fparam->param.var_entry = create_var_entry(param_id->ltk->lexeme, type_param, -1, -1);
+
+				var_assign_offset(fparam->param.var_entry, f_st_entry);
+
+				// TEMP
+				var_id_entry *entry = fparam->param.var_entry;
 			}
 			ll_append(fip_ll, fparam);
 		}
@@ -141,6 +153,11 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			fparam->is_array = false; // output param cannot be array
 			fparam->is_assigned = false;
 			fparam->param.var_entry = create_var_entry(param_id->ltk->lexeme, type_param, -1, -1);
+
+			var_assign_offset(fparam->param.var_entry, f_st_entry);
+
+			// TEMP
+			var_id_entry *entry = fparam->param.var_entry;
 
 			ll_append(fop_ll, fparam);
 		}
@@ -243,8 +260,8 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			expr_node = get_child(whichstmt_node, 1);
 		}
 
-		first_pass(main_st, expr_node, curr_scope);
 		ast_node *expr_data = (ast_node *) get_data(expr_node);
+		if (!expr_data->is_leaf) first_pass(main_st, expr_node, curr_scope);
 
 		/*printf("lhs: %d; rhs: %d\n", var_type, expr_data->type);*/
 		if (expr_data->type == -1) {
@@ -439,10 +456,16 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 							range_indices[0],
 							range_indices[1],
 							-1, -1);
+
+					arr_assign_offset(entry, curr_scope->func);
+
 					add_to_hash_map(curr_scope->arr_st, id_var_name, entry);
 				}
 				else {
 					var_id_entry *entry = create_var_entry(id_var_name, dtype, -1, -1);
+
+					var_assign_offset(entry, curr_scope->func);
+
 					add_to_hash_map(curr_scope->var_id_st, id_var_name, entry);
 				}
 			}
@@ -459,7 +482,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 
 		// using line_num to generate key for hash map
 		int line_num = id_data->ltk->line_num;
-		char str_line_num[25];
+		char *str_line_num = (char *) malloc(25 * sizeof(char));
 		sprintf(str_line_num, "%d", line_num);
 		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
 		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
@@ -545,9 +568,11 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		add_to_hash_map(new_scope->var_id_st, id_data->ltk->lexeme, entry);
 		new_scope->loop_var_entry = entry;
 
+		var_assign_offset(entry, curr_scope->func);
+
 		// using line_num to generate key for hash map
 		int line_num = id_data->ltk->line_num;
-		char str_line_num[25];
+		char *str_line_num = (char *) malloc(25 * sizeof(char));
 		sprintf(str_line_num, "%d", line_num);
 		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
 
@@ -576,11 +601,10 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 
 		// using line_num to generate key for hash map
 		int line_num = while_data->ltk->line_num;
-		char str_line_num[25];
+		char *str_line_num = (char *) malloc(25 * sizeof(char));
 		sprintf(str_line_num, "%d", line_num);
 		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
 		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
-		printf("first line num: %s ; %p\n", str_line_num, curr_scope->child_scopes);
 
 		// TODO: what to do with aobexpr_node here for code generation
 		// and statements (below)
@@ -600,9 +624,11 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 
 	nonterminal ast_nt = data_label.gms.nt;
 
-	char ast_nt_name[100];
-	nonterminal_name(ast_nt, ast_nt_name);
-	printf("pass 2 here %s\n", ast_nt_name);
+	/*
+	 *char ast_nt_name[100];
+	 *nonterminal_name(ast_nt, ast_nt_name);
+	 *printf("pass 2 here %s\n", ast_nt_name);
+	 */
     if (ast_nt == program) {
 		second_pass(main_st, get_child(astn, 0), curr_scope);
 		second_pass(main_st, get_child(astn, 1), curr_scope);
@@ -845,7 +871,8 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			expr_node = get_child(whichstmt_node, 1);
 		}
 
-		second_pass(main_st, expr_node, curr_scope);
+		ast_node *expr_data = (ast_node *) get_data(expr_node);
+		if (!expr_data->is_leaf) second_pass(main_st, expr_node, curr_scope);
 /*
  *        ast_node *expr_data = (ast_node *) get_data(expr_node);
  *
@@ -1056,9 +1083,8 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 
 		// using line_num to get scope from hash map
 		int line_num = id_data->ltk->line_num;
-		char str_line_num[25];
+		char *str_line_num = (char *) malloc(25 * sizeof(char));
 		sprintf(str_line_num, "%d", line_num);
-		printf("conditional here: %p\n", curr_scope);
 		scope_node *new_scope = fetch_from_hash_map(curr_scope->child_scopes, str_line_num);
 		/*
 		 *scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
@@ -1153,7 +1179,7 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 
 		// use line num to get scope
 		int line_num = id_data->ltk->line_num;
-		char str_line_num[25];
+		char *str_line_num = (char *) malloc(25 * sizeof(char));
 		sprintf(str_line_num, "%d", line_num);
 		scope_node *new_scope = fetch_from_hash_map(curr_scope->child_scopes, str_line_num);
 		/*add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);*/
@@ -1185,10 +1211,9 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 
 		// using line_num to get scope
 		int line_num = while_data->ltk->line_num;
-		char str_line_num[25];
+		char *str_line_num = (char *) malloc(25 * sizeof(char));
 		sprintf(str_line_num, "%d", line_num);
 		scope_node *new_scope = (scope_node *) fetch_from_hash_map(curr_scope->child_scopes, str_line_num);
-		printf("second line num : %s ; %p\n", str_line_num, curr_scope->child_scopes);
 		/*
 		 *scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
 		 *add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);

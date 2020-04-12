@@ -319,11 +319,30 @@ bool is_same_type (common_id_entry *a, common_id_entry *b) {
 	}
 }
 
+void arr_assign_offset (arr_id_entry *entry, func_entry *func) {
+	int func_width = func->width;
+	entry->offset = func_width;
+	if (entry->is_static) {
+		func->width = func_width + ((entry->range_end - entry->range_start + 1) * entry->width);
+	}
+	else {
+		func->width = func_width + ASM_ADDR_SIZE;
+	}
+	printf("var width off : %s %d %d\n", entry->lexeme, entry->width, entry->offset);
+}
+
+void var_assign_offset (var_id_entry *entry, func_entry *func) {
+	int func_width = func->width;
+	entry->offset = func_width;
+	func->width = func->width + entry->width;
+	printf("var width off : %s %d %d\n", entry->lexeme, entry->width, entry->offset);
+}
+
 hash_map *create_symbol_table () {
 	hash_map *main_st = create_hash_map(DEFAULT_ST_SIZE);
 
 	// default entry for driver module
-	func_entry *st_entry = create_func_entry("program", true, false, false, -1, -1);
+	func_entry *st_entry = create_func_entry("program", true, false, false, -1, 0);
 	add_to_hash_map(main_st, st_entry->name, st_entry);
 
 	return main_st;

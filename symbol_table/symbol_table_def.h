@@ -14,6 +14,8 @@
 #include "../data_structs/linked_list.h"
 #include "../lang_specs/entities.h"
 
+#define ASM_ADDR_SIZE 4
+
 typedef enum {
 	integer,
 	real,

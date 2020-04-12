@@ -30,5 +30,7 @@ int bound_type_check (arr_id_entry *entry, ast_leaf *index_data, scope_node *cur
 common_id_entry *type_check_var (ast_leaf *id_data, ast_leaf *index_node, scope_node *curr_scope, reason_flag need_for);
 id_type type_from_entry (common_id_entry *entry, bool indexed);
 bool is_same_type (common_id_entry *a, common_id_entry *b);
+void arr_assign_offset (arr_id_entry *entry, func_entry *func);
+void var_assign_offset (var_id_entry *entry, func_entry *func);
 
 #endif
