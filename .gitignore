@@ -1,3 +1,4 @@
 *.o
 *.swp
+compiler
 debug_exe

@@ -108,28 +108,23 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 				fparam->is_array = true;
 				
 				tree_node *range_arrays = get_child(param_type, 0);
-				int *range_indices = get_range_from_node(range_arrays);
+				int *range_indices = get_static_range(range_arrays);
+				// TODO: module params dont have dynamic ranges?
+				/*common_id_entry **range_entries = get_dynamic_range(range_arrays, NULL);*/
 
 				fparam->param.arr_entry = create_arr_entry(
 						param_id->ltk->lexeme,
 						get_type_from_node(get_child(param_type, 1)),
-						range_indices[0],
-						range_indices[1],
+						range_indices, NULL,
 						-1, -1);
 
 				arr_assign_offset(fparam->param.arr_entry, f_st_entry);
-
-				// TEMP
-				arr_id_entry *entry = fparam->param.arr_entry;
 			}
 			else {
 				fparam->is_array = false;
 				fparam->param.var_entry = create_var_entry(param_id->ltk->lexeme, type_param, -1, -1);
 
 				var_assign_offset(fparam->param.var_entry, f_st_entry);
-
-				// TEMP
-				var_id_entry *entry = fparam->param.var_entry;
 			}
 			ll_append(fip_ll, fparam);
 		}
@@ -180,7 +175,15 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 	}
 
 	if (ast_nt == moduleDef) {
-		first_pass(main_st, get_child(astn, 0), curr_scope);
+		ast_leaf *start_data = (ast_leaf *) get_data(get_child(astn, 0));
+		ast_leaf *end_data = (ast_leaf *) get_data(get_child(astn, 2));
+		int start_line_num = start_data->ltk->line_num;
+		int end_line_num = end_data->ltk->line_num;
+
+		curr_scope->start_line = start_line_num;
+		curr_scope->end_line = end_line_num;
+
+		first_pass(main_st, get_child(astn, 1), curr_scope);
 	}
 
 	if (ast_nt == statements) {
@@ -448,13 +451,13 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			else {
 				if (dtype == array) {
 					tree_node *range_arrays = get_child(dtype_node, 0);
-					int *range_indices = get_range_from_node(range_arrays);
+					int *range_indices = get_static_range(range_arrays);
+					common_id_entry **range_entries = get_dynamic_range(range_arrays, curr_scope);
 					
 					arr_id_entry *entry = create_arr_entry(
 							id_var_name,
 							get_type_from_node(get_child(dtype_node, 1)),
-							range_indices[0],
-							range_indices[1],
+							range_indices, range_entries,
 							-1, -1);
 
 					arr_assign_offset(entry, curr_scope->func);
@@ -475,16 +478,20 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 	if (ast_nt == condionalStmt) {
 		tree_node *id_node = get_child(astn, 0);
 		ast_leaf *id_data = (ast_leaf *) get_data(id_node);
-		tree_node *casestmt_node = get_child(astn, 1);
-		tree_node *default_node = get_child(astn, 2);
+		tree_node *casestmt_node = get_child(astn, 2);
+		tree_node *default_node = get_child(astn, 3);
 		ast_leaf *default_data = (ast_leaf *) get_data(default_node);
 		linked_list *casestmts_ll = ((ast_node *) get_data(casestmt_node))->ll;
 
+		ast_leaf *start_data = (ast_leaf *) get_data(get_child(astn, 1));
+		ast_leaf *end_data = (ast_leaf *) get_data(get_child(astn, 4));
+		int start_line_num = start_data->ltk->line_num;
+		int end_line_num = end_data->ltk->line_num;
+
 		// using line_num to generate key for hash map
-		int line_num = id_data->ltk->line_num;
 		char *str_line_num = (char *) malloc(25 * sizeof(char));
-		sprintf(str_line_num, "%d", line_num);
-		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
+		sprintf(str_line_num, "%d", start_line_num);
+		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func, start_line_num, end_line_num);
 		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
 
 		common_id_entry *entry = type_check_var(id_data, NULL, new_scope, for_use);
@@ -558,10 +565,15 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		tree_node *id_node = get_child(astn, 0);
 		ast_leaf *id_data = get_data(id_node);
 		tree_node *range_node = get_child(astn, 1);
-		tree_node *stmts_node = get_child(astn, 2);
+		tree_node *stmts_node = get_child(astn, 3);
+
+		ast_leaf *start_data = (ast_leaf *) get_data(get_child(astn, 2));
+		ast_leaf *end_data = (ast_leaf *) get_data(get_child(astn, 4));
+		int start_line_num = start_data->ltk->line_num;
+		int end_line_num = end_data->ltk->line_num;
 
 		// new scope
-		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
+		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func, start_line_num, end_line_num);
 
 		// insert loop var in scope
 		var_id_entry *entry = create_var_entry(id_data->ltk->lexeme, integer, -1, -1);
@@ -570,13 +582,12 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 
 		var_assign_offset(entry, curr_scope->func);
 
-		// using line_num to generate key for hash map
-		int line_num = id_data->ltk->line_num;
+		// using start line num to generate key for hash map
 		char *str_line_num = (char *) malloc(25 * sizeof(char));
-		sprintf(str_line_num, "%d", line_num);
+		sprintf(str_line_num, "%d", start_line_num);
 		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
 
-		int *range_indices = get_range_from_node(range_node);
+		int *range_indices = get_static_range(range_node);
 		// TODO: what to do with range here for code generation
 		// and statements (below)
 		//
@@ -587,8 +598,9 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 	}
 
 	if (ast_nt == while_loop) {
-		ast_leaf *while_data = (ast_leaf *) get_data(get_child(astn, 0));
-		tree_node *aobexpr_node = get_child(astn, 1);
+		ast_leaf *start_data = (ast_leaf *) get_data(get_child(astn, 1));
+		ast_leaf *end_data = (ast_leaf *) get_data(get_child(astn, 3));
+		tree_node *aobexpr_node = get_child(astn, 0);
 		tree_node *stmts_node = get_child(astn, 2);
 
 		first_pass(main_st, aobexpr_node, curr_scope);
@@ -599,11 +611,12 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			// TODO:
 		}
 
-		// using line_num to generate key for hash map
-		int line_num = while_data->ltk->line_num;
+		// using start line num to generate key for hash map
+		int start_line_num = start_data->ltk->line_num;
+		int end_line_num = end_data->ltk->line_num;
 		char *str_line_num = (char *) malloc(25 * sizeof(char));
-		sprintf(str_line_num, "%d", line_num);
-		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
+		sprintf(str_line_num, "%d", start_line_num);
+		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func, start_line_num, end_line_num);
 		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
 
 		// TODO: what to do with aobexpr_node here for code generation
@@ -783,7 +796,7 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 	}
 
 	if (ast_nt == moduleDef) {
-		second_pass(main_st, get_child(astn, 0), curr_scope);
+		second_pass(main_st, get_child(astn, 1), curr_scope);
 	}
 
 	if (ast_nt == statements) {
@@ -1076,15 +1089,17 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 	if (ast_nt == condionalStmt) {
 		tree_node *id_node = get_child(astn, 0);
 		ast_leaf *id_data = (ast_leaf *) get_data(id_node);
-		tree_node *casestmt_node = get_child(astn, 1);
-		tree_node *default_node = get_child(astn, 2);
+		tree_node *casestmt_node = get_child(astn, 2);
+		tree_node *default_node = get_child(astn, 3);
 		ast_leaf *default_data = (ast_leaf *) get_data(default_node);
 		linked_list *casestmts_ll = ((ast_node *) get_data(casestmt_node))->ll;
 
+		ast_leaf *start_data = (ast_leaf *) get_data(get_child(astn, 1));
+		int start_line_num = start_data->ltk->line_num;
+
 		// using line_num to get scope from hash map
-		int line_num = id_data->ltk->line_num;
 		char *str_line_num = (char *) malloc(25 * sizeof(char));
-		sprintf(str_line_num, "%d", line_num);
+		sprintf(str_line_num, "%d", start_line_num);
 		scope_node *new_scope = fetch_from_hash_map(curr_scope->child_scopes, str_line_num);
 		/*
 		 *scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
@@ -1168,7 +1183,7 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		tree_node *id_node = get_child(astn, 0);
 		ast_leaf *id_data = get_data(id_node);
 		tree_node *range_node = get_child(astn, 1);
-		tree_node *stmts_node = get_child(astn, 2);
+		tree_node *stmts_node = get_child(astn, 3);
 
 		// insert loop var in scope
 		/*
@@ -1177,14 +1192,16 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		 *new_scope->loop_var_entry = entry;
 		 */
 
-		// use line num to get scope
-		int line_num = id_data->ltk->line_num;
+		ast_leaf *start_data = (ast_leaf *) get_data(get_child(astn, 2));
+		int start_line_num = start_data->ltk->line_num;
+
+		// use start line num to get scope
 		char *str_line_num = (char *) malloc(25 * sizeof(char));
-		sprintf(str_line_num, "%d", line_num);
+		sprintf(str_line_num, "%d", start_line_num);
 		scope_node *new_scope = fetch_from_hash_map(curr_scope->child_scopes, str_line_num);
 		/*add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);*/
 
-		int *range_indices = get_range_from_node(range_node);
+		int *range_indices = get_static_range(range_node);
 		// TODO: what to do with range here for code generation
 		// and statements (below)
 		//
@@ -1195,8 +1212,9 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 	}
 
 	if (ast_nt == while_loop) {
-		ast_leaf *while_data = (ast_leaf *) get_data(get_child(astn, 0));
-		tree_node *aobexpr_node = get_child(astn, 1);
+		ast_leaf *start_data = (ast_leaf *) get_data(get_child(astn, 1));
+		/*ast_leaf *end_data = (ast_leaf *) get_data(get_child(astn, 3));*/
+		tree_node *aobexpr_node = get_child(astn, 0);
 		tree_node *stmts_node = get_child(astn, 2);
 
 		second_pass(main_st, aobexpr_node, curr_scope);
@@ -1210,7 +1228,7 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		 */
 
 		// using line_num to get scope
-		int line_num = while_data->ltk->line_num;
+		int line_num = start_data->ltk->line_num;
 		char *str_line_num = (char *) malloc(25 * sizeof(char));
 		sprintf(str_line_num, "%d", line_num);
 		scope_node *new_scope = (scope_node *) fetch_from_hash_map(curr_scope->child_scopes, str_line_num);
@@ -1229,9 +1247,10 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 	}
 }
 
-void call_semantic_analyzer (tree *ast) {
+hash_map *call_semantic_analyzer (tree *ast) {
 	tree_node *astn = get_root(ast);
 	hash_map *main_st = create_symbol_table();
 	first_pass(main_st, astn, NULL);
 	second_pass(main_st, astn, NULL);
+	return main_st;
 }

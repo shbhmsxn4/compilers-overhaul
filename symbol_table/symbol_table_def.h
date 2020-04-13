@@ -23,6 +23,8 @@ typedef enum {
 	array
 } id_type;
 
+typedef struct ___COMMON_ID_ENTRY___ common_id_entry;
+
 typedef struct ___VAR_ST_ENTRY___ {
 	char lexeme[MAX_SYMBOL_LEN];
 	id_type type;
@@ -35,6 +37,8 @@ typedef struct ___ARRAY_ST_ENTRY___ {
 	id_type type;
 	int range_start;
 	int range_end;
+	common_id_entry *rstart_entry;
+	common_id_entry *rend_entry;
 	int width; // for arrays, width is the width of single elem
 	int offset; // TODO: after dynamic arrays are discussed
 	bool is_static;
@@ -48,11 +52,12 @@ typedef struct ___FUNC_ST_ENTRY___ func_entry;
 struct ___SCOPE_NODE___ {
 	hash_map* var_id_st;
 	hash_map* arr_st;
-
 	scope_node* parent_scope;
 	hash_map* child_scopes;
 	func_entry* func;
 	var_id_entry *loop_var_entry;
+	int start_line;
+	int end_line;
 };
 
 struct ___FUNC_ST_ENTRY___ {
@@ -78,10 +83,10 @@ typedef struct ___PARAM_NODE___ {
 	bool is_assigned; // for output params
 } param_node;
 
-typedef struct ___COMMON_ID_ENTRY___ {
+struct ___COMMON_ID_ENTRY___ {
 	bool is_array;
 	id_entry entry;
-} common_id_entry;
+};
 
 typedef enum {
 	for_decl,

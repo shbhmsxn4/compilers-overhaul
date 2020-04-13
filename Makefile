@@ -1,3 +1,6 @@
+run : new_driver.o lexer.o symbol_table.o semantics.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o
+	gcc new_driver.o lexer.o symbol_table.o semantics.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o -o compiler
+
 debug_exe : driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o
 	gcc driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o -o debug_exe
 
@@ -60,6 +63,9 @@ generate_parse_table.o : ./utils/generate_parse_table.h ./utils/generate_parse_t
 
 driver.o : driver.c
 	gcc -c driver.c
+
+new_driver.o : new_driver.c
+	gcc -c new_driver.c
 
 lexer.o : ./lexer/lexer.h ./lexer/lexer.c
 	gcc -c ./lexer/lexer.c

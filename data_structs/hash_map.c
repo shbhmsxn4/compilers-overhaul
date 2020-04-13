@@ -138,3 +138,25 @@ void destroy_hash_map(hash_map *hm)
     free(hm->buckets);
     free(hm);
 }
+
+hm_node *get_all_hm_nodes (hash_map *map) {
+	hm_node *tmp = (hm_node *) malloc(sizeof(hm_node));
+	tmp->next = NULL;
+
+	hm_node *curr_last_ptr = tmp;
+	int num_buckets = map->num_buckets;
+	for (int i = 0; i < num_buckets; i++) {
+		hm_node *head = map->buckets[i]->first;
+		if (head != NULL) {
+			curr_last_ptr->next = head;
+
+			while (curr_last_ptr->next != NULL) {
+				curr_last_ptr = curr_last_ptr->next;
+			}
+		}
+	}
+
+	hm_node *ret = tmp->next;
+	free(tmp);
+	return ret;
+}

@@ -137,6 +137,7 @@ tree_node *apply_ast_rules(tree_node *ptn, tree_node *astn)
     nonterminal lhs = ((pt_node *)get_data(ptn))->nt;
 	char nt[100];
 	nonterminal_name(lhs, nt);
+	/*printf("temp : %s\n", nt);*/
     gm_unit *rhs;
     int rhs_len = num_children;
     rhs = (gm_unit *)calloc(num_children, sizeof(gm_unit));
@@ -265,10 +266,13 @@ tree_node *apply_ast_rules(tree_node *ptn, tree_node *astn)
         add_rule_rhs(rule, 4, moduleDef, false);
         if (ast_rule_matches(rule, (pt_node *)get_data(ptn)))
         {
-            ast_node *n = make_ast_node(moduleDef, false);
-            set_data(astn, (void *)n);
-            add_child(astn, NULL);
-            apply_ast_rules(get_child(ptn, 4), get_child(astn, 0));
+			/*
+			 *ast_node *n = make_ast_node(moduleDef, false);
+			 *set_data(astn, (void *)n);
+			 *add_child(astn, NULL);
+			 *apply_ast_rules(get_child(ptn, 4), get_child(astn, 0));
+			 */
+            apply_ast_rules(get_child(ptn, 4), astn);
         }
         free(rule->rhs);
     }
@@ -566,7 +570,18 @@ tree_node *apply_ast_rules(tree_node *ptn, tree_node *astn)
         add_rule_rhs(rule, 2, END, true);
         if (ast_rule_matches(rule, (pt_node *)get_data(ptn)))
         {
-            apply_ast_rules(get_child(ptn, 1), astn);
+			ast_node *n = make_ast_node(moduleDef, false);
+			set_data(astn, (void *)n);
+
+			lexical_token *start_ltk = ((pt_leaf *)get_data(get_child(ptn, 0)))->lt;
+            ast_leaf *start = make_ast_leaf(START, true, start_ltk);
+            lexical_token *end_ltk = ((pt_leaf *)get_data(get_child(ptn, 2)))->lt;
+            ast_leaf *end = make_ast_leaf(END, true, end_ltk);
+
+			add_child(astn, (void *) start);
+			add_child(astn, NULL);
+			add_child(astn, (void *) end);
+            apply_ast_rules(get_child(ptn, 1), get_child(astn, 1));
         }
         free(rule->rhs);
     }
@@ -1497,11 +1512,19 @@ tree_node *apply_ast_rules(tree_node *ptn, tree_node *astn)
             set_data(astn, (void *)n);
             lexical_token *ltk = ((pt_leaf *)get_data(get_child(ptn, 2)))->lt;
             ast_leaf *l = make_ast_leaf(ID, true, ltk);
+
+			lexical_token *start_ltk = ((pt_leaf *)get_data(get_child(ptn, 4)))->lt;
+            ast_leaf *start = make_ast_leaf(START, true, start_ltk);
+            lexical_token *end_ltk = ((pt_leaf *)get_data(get_child(ptn, 7)))->lt;
+            ast_leaf *end = make_ast_leaf(END, true, end_ltk);
+
             add_child(astn, (void *)l);
+            add_child(astn, (void *)start);
             add_child(astn, NULL);
             add_child(astn, NULL);
-            apply_ast_rules(get_child(ptn, 5), get_child(astn, 1));
-            apply_ast_rules(get_child(ptn, 6), get_child(astn, 2));
+            add_child(astn, (void *)end);
+            apply_ast_rules(get_child(ptn, 5), get_child(astn, 2));
+            apply_ast_rules(get_child(ptn, 6), get_child(astn, 3));
         }
         free(rule->rhs);
     }
@@ -1649,11 +1672,19 @@ tree_node *apply_ast_rules(tree_node *ptn, tree_node *astn)
             set_data(astn, (void *)n);
             lexical_token *ltk = ((pt_leaf *)get_data(get_child(ptn, 2)))->lt;
             ast_leaf *l = make_ast_leaf(ID, true, ltk);
+
+			lexical_token *start_ltk = ((pt_leaf *)get_data(get_child(ptn, 6)))->lt;
+            ast_leaf *start = make_ast_leaf(START, true, start_ltk);
+            lexical_token *end_ltk = ((pt_leaf *)get_data(get_child(ptn, 8)))->lt;
+            ast_leaf *end = make_ast_leaf(END, true, end_ltk);
+
             add_child(astn, (void *)l);
             add_child(astn, NULL);
+            add_child(astn, (void *)start);
             add_child(astn, NULL);
+            add_child(astn, (void *)end);
             apply_ast_rules(get_child(ptn, 4), get_child(astn, 1));
-            apply_ast_rules(get_child(ptn, 7), get_child(astn, 2));
+            apply_ast_rules(get_child(ptn, 7), get_child(astn, 3));
         }
         free(rule->rhs);
 
@@ -1670,12 +1701,15 @@ tree_node *apply_ast_rules(tree_node *ptn, tree_node *astn)
         {
             ast_node *n = make_ast_node(while_loop, false);
             set_data(astn, (void *)n);
-            lexical_token *ltk = ((pt_leaf *)get_data(get_child(ptn, 0)))->lt;
-            ast_leaf *l = make_ast_leaf(WHILE, true, ltk);
-            add_child(astn, (void *)l);
+            lexical_token *start_ltk = ((pt_leaf *)get_data(get_child(ptn, 4)))->lt;
+            ast_leaf *start = make_ast_leaf(START, true, start_ltk);
+            lexical_token *end_ltk = ((pt_leaf *)get_data(get_child(ptn, 6)))->lt;
+            ast_leaf *end = make_ast_leaf(END, true, end_ltk);
             add_child(astn, NULL);
+            add_child(astn, (void *)start);
             add_child(astn, NULL);
-            apply_ast_rules(get_child(ptn, 2), get_child(astn, 1));
+            add_child(astn, (void *)end);
+            apply_ast_rules(get_child(ptn, 2), get_child(astn, 0));
             apply_ast_rules(get_child(ptn, 5), get_child(astn, 2));
         }
         free(rule->rhs);
