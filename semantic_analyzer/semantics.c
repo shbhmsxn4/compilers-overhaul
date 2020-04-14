@@ -48,7 +48,9 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			add_to_hash_map(main_st, func_name, f_st_entry);
 		}
 		else {
-			// TODO: module redeclaration error
+			char err_msg[100];
+			sprintf(err_msg, "'%s' module re-declared", func_name);
+			display_err("Semantic", module_id_data->ltk->line_num, err_msg);
 		}
 		//
 		//
@@ -78,12 +80,14 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		}
 		else {
 			if (f_st_entry->is_defined) {
-				printf("multiple definitions for function : %s\n", func_name);
-				// TODO:
+				char err_msg[100];
+				sprintf(err_msg, "'%s' module re-defined", func_name);
+				display_err("Semantic", module_id_data->ltk->line_num, err_msg);
 			}
 			if (f_st_entry->is_declared && !f_st_entry->is_called) {
-				printf("redundant function declaration : %s\n", func_name);
-				// TODO: redundant declaration, only definition required
+				char err_msg[100];
+				sprintf(err_msg, "'%s' module has redundant declaration", func_name);
+				display_err("Semantic", module_id_data->ltk->line_num, err_msg);
 			}
 		}
 
@@ -161,15 +165,23 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		if (!entry_exists) add_to_hash_map(main_st, func_name, f_st_entry);
 
 		// MODULEDEF
-		// TODO: TEMPORARY????
 		first_pass(main_st, get_child(astn, 3), f_st_entry->local_scope);
 
 		// check if all output params have been assigned
 		for (int i = 0; i < f_st_entry->output_param_list->num_nodes; i++) {
 			param_node *pnode = (param_node *) ll_get(fop_ll, i);
+
 			if (!pnode->is_assigned) {
-				printf("output params need to be assigned value\n");
-				// TODO: err unassigned output param
+				char *pname;
+				if (pnode->is_array) {
+					pname = pnode->param.arr_entry->lexeme;
+				}
+				else {
+					pname = pnode->param.var_entry->lexeme;
+				}
+				char err_msg[100];
+				sprintf(err_msg, "Output param '%s' is not assigned in module '%s'", pname, func_name);
+				display_err("Semantic", module_id_data->ltk->line_num, err_msg);
 			}
 		}
 	}
@@ -231,7 +243,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		tree_node *var_node = get_child(astn, 0);
 		
 		if (((ast_leaf *) get_data(var_node))->is_leaf) {
-			printf("output stmt printing const\n");
+			/*printf("output stmt printing const\n");*/
 		}
 		else {
 			first_pass(main_st, var_node, curr_scope);
@@ -271,17 +283,19 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			// TODO: means that the rhs had internal type conflcts
 			// what to do in this case??
 		}
-
-		if (var_type != expr_data->type) {
-			printf("type err : lhs rhs of assignment dont match\n");
-			// TODO: 
+		else if (var_type != expr_data->type) {
+			char err_msg[100];
+			sprintf(err_msg, "Type mismatch - LHS is %s, RHS is %s", type_to_str(var_type), type_to_str(expr_data->type));
+			display_err("Type", id_data->ltk->line_num, err_msg);
 		}
 		else if (expr_data->type == array) {
 			ast_leaf *rhs_arr_data = (ast_leaf *) get_data(get_child(expr_node, 0));
 			char *rhs_arr_name = rhs_arr_data->ltk->lexeme;
 			common_id_entry *rhs_entry = type_check_var(rhs_arr_data, NULL, curr_scope, for_use);
 			if (!is_same_type(id_entry, rhs_entry)) {
-				printf("type err : lhs rhs of assignment dont match (arrays)\n");
+				char err_msg[100];
+				sprintf(err_msg, "Type mismatch in LHS, RHS arrays");
+				display_err("Type", id_data->ltk->line_num, err_msg);
 			}
 		}
 	}
@@ -294,14 +308,16 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		func_entry *fentry = fetch_from_hash_map(main_st, func_name);
 
 		if (fentry == NULL) {
-			// TODO: undeclared func err
-			printf("ERR: undeclared module\n");
+			char err_msg[100];
+			sprintf(err_msg, "'%s' module is unknown", func_name);
+			display_err("Semantic", id_data->ltk->line_num, err_msg);
 			return;
 		}
 		else {
 			if (fentry == curr_scope->func) {
-				printf("recurstion not allowed\n");
-				// TODO: recursion not allowed
+				char err_msg[100];
+				sprintf(err_msg, "'%s' module recursion not allowed", func_name);
+				display_err("Semantic", id_data->ltk->line_num, err_msg);
 			}
 
 			fentry->is_called = true;
@@ -378,9 +394,10 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		first_pass(main_st, expr_node, curr_scope);
 
 		ast_node *expr_data = (ast_node *) get_data(expr_node);
-		if (expr_data->type != integer && expr_data->type != real) {
-			printf("type error for unary : should be integer/real\n");
-			// TODO: 
+		if (expr_data->type != -1 && expr_data->type != integer && expr_data->type != real) {
+			char err_msg[100];
+			sprintf(err_msg, "Expression after unary operator should be integer or real, found %s", type_to_str(expr_data->type));
+			display_err("Type", uop->ltk->line_num, err_msg);
 		}
 		else {
 			((ast_node *) (get_data(astn)))->type = expr_data->type;
@@ -407,21 +424,45 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 
 		/*printf("left: %d; right: %d\n", left_op_data->type, right_op_data->type);*/
 		if (left_op_data->type == array || right_op_data->type == array) {
-			printf("type error : array vars cannot be involved in exprs\n");
+			char err_msg[100];
+			char op_name[10];
+			terminal_name(op_node->label.gms.t, op_name);
+			sprintf(err_msg, "array(s) cannot be involved expression(s) at operator '%s'", op_name);
+			display_err("Type", op_node->ltk->line_num, err_msg);
 		}
 		else if (ast_nt == logicalOp) {
-			if (left_op_data->type != right_op_data->type || left_op_data->type != boolean) {
-				printf("type error : logical operations\n");
-				// TODO:
+			char err_msg[150];
+			char op_name[10];
+			terminal_name(op_node->label.gms.t, op_name);
+			if (left_op_data->type == -1 || right_op_data->type == -1) {
+				// TODO: WHAT HERE?
+			}
+			else if (left_op_data->type != right_op_data->type) {
+				sprintf(err_msg, "Type mismatch at operator '%s', left operand is %s right operand is %s", op_name, type_to_str(left_op_data->type), type_to_str(right_op_data->type));
+				display_err("Type", op_node->ltk->line_num, err_msg);
+			}
+			else if (left_op_data->type != boolean) {
+				sprintf(err_msg, "Incorrect types at operator '%s', left and right operands should be boolean, found %s", op_name, type_to_str(left_op_data->type));
+				display_err("Type", op_node->ltk->line_num, err_msg);
 			}
 			else {
 				astn_data->type = boolean;
 			}
 		}
 		else {
-			if (left_op_data->type != right_op_data->type || left_op_data->type == boolean) {
-				printf("type mismatch in expr\n");
-				// TODO:
+			char err_msg[150];
+			char op_name[10];
+			terminal_name(op_node->label.gms.t, op_name);
+			if (left_op_data->type == -1 || right_op_data->type == -1) {
+				// TODO: WHAT HERE?
+			}
+			else if (left_op_data->type != right_op_data->type) {
+				sprintf(err_msg, "Type mismatch at operator '%s', left operand is %s right operand is %s", op_name, type_to_str(left_op_data->type), type_to_str(right_op_data->type));
+				display_err("Type", op_node->ltk->line_num, err_msg);
+			}
+			else if (left_op_data->type == boolean) {
+				sprintf(err_msg, "Incorrect types at operator '%s', left and right operands should not be boolean", op_name);
+				display_err("Type", op_node->ltk->line_num, err_msg);
 			}
 			else if (ast_nt == relationalOp) {
 				astn_data->type = boolean;
@@ -443,10 +484,11 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			tree_node *id_lnode = (tree_node *) ll_get(id_ll, i);
 			ast_leaf *id_data = (ast_leaf *) get_data(id_lnode);
 			char *id_var_name = id_data->ltk->lexeme;
-			common_id_entry *id_var_entry = find_id_for_decl(id_var_name, curr_scope);
+			common_id_entry *id_var_entry = find_id_for_decl(id_var_name, curr_scope, id_data->ltk->line_num);
 			if (id_var_entry != NULL) {
-				printf("redeclaration: %s\n", id_var_name);
-				// TODO: redeclaration error 
+				char err_msg[100];
+				sprintf(err_msg, "'%s' variable re-declared", id_var_name);
+				display_err("Semantic", id_data->ltk->line_num, err_msg);
 			}
 			else {
 				if (dtype == array) {
@@ -497,27 +539,31 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		common_id_entry *entry = type_check_var(id_data, NULL, new_scope, for_use);
 		id_type var_type = type_from_entry(entry, false);
 		if (var_type == real || var_type == array) {
-			printf("switch var should be int or bool\n");
-			// TODO: type err switch var cant be these
+			char err_msg[100];
+			sprintf(err_msg, "switch var '%s' should be integer or boolean, found %s", id_data->ltk->lexeme, type_to_str(var_type));
+			display_err("Semantic", id_data->ltk->line_num, err_msg);
 		}
 
 		int casestmts_cnt = casestmts_ll->num_nodes;
 		if (var_type == boolean && casestmts_cnt != 2) {
-			printf("switch with boolean var should have exactly 2 case stmts\n");
-			// TODO: err need exactly 2 case stmts (true/false)
+			char err_msg[100];
+			sprintf(err_msg, "switch of var '%s' (boolean) should have exactly 2 case statements, found %d", id_data->ltk->lexeme, casestmts_cnt);
+			display_err("Semantic", id_data->ltk->line_num, err_msg);
 		}
 
 		bool got_true = false, got_false = false;
 		for (int i = 0; i < casestmts_cnt; i++) {
 			tree_node *cstmt_node = (tree_node *) ll_get(casestmts_ll, i);
 			tree_node *val_node = get_child(cstmt_node, 0);
+			ast_leaf *val_data = (ast_leaf *) get_data(val_node);
 			tree_node *stmts_node = get_child(cstmt_node, 1);
 
 			id_type val_type = get_type_from_node(val_node); // can only boolean or integer
 															// because of grammar
 			if (val_type != var_type) {
-				printf("incorrect case var type\n");
-				// TODO: type error, should be integer
+				char err_msg[100];
+				sprintf(err_msg, "found case '%s' of type %s for switch of var '%s' (%s)", val_data->ltk->lexeme, type_to_str(val_type), id_data->ltk->lexeme, type_to_str(var_type));
+				display_err("Type", val_data->ltk->line_num, err_msg);
 			}
 			else if (val_type == boolean) {
 				terminal val_term = ((ast_leaf *) get_data(val_node))->label.gms.t;
@@ -532,19 +578,24 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 
 		if (var_type == integer) {
 			if (default_data == NULL) {
-				printf("default stmt required\n");
-				// TODO: err required default stmt
+				char err_msg[100];
+				sprintf(err_msg, "switch of var '%s' (integer) should have a default statement", id_data->ltk->lexeme);
+				display_err("Semantic", id_data->ltk->line_num, err_msg);
 			}
 		}
 		else if (var_type == boolean) {
-			if (!got_true || !got_false) {
-				printf("switch for bool should have both true and false cases\n");
-				// TODO: true false both cases required
+			char err_msg[100];
+			if (!got_true) {
+				sprintf(err_msg, "case 'true' not found for switch of var '%s' (boolean)", id_data->ltk->lexeme);
+				display_err("Semantic", id_data->ltk->line_num, err_msg);
 			}
-
+			if (!got_false) {
+				sprintf(err_msg, "case 'false' not found for switch of var '%s' (boolean)", id_data->ltk->lexeme);
+				display_err("Semantic", id_data->ltk->line_num, err_msg);
+			}
 			if (default_data != NULL) {
-				printf("default stmt should not be here\n");
-				// TODO: err should not have default stmt
+				sprintf(err_msg, "switch of var '%s' (boolean) should not have a default statement", id_data->ltk->lexeme);
+				display_err("Semantic", id_data->ltk->line_num, err_msg);
 			}
 		}
 
@@ -588,6 +639,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
 
 		int *range_indices = get_static_range(range_node);
+		// NO dynamic range possible, bcuz of grammar rules
 		// TODO: what to do with range here for code generation
 		// and statements (below)
 		//
@@ -605,19 +657,20 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 
 		first_pass(main_st, aobexpr_node, curr_scope);
 
-		ast_node *aobexpr_data = (ast_node *) get_data(aobexpr_node);
-		if (aobexpr_data->type != boolean) {
-			printf("condition expression for while should be of type bool\n");
-			// TODO:
-		}
-
-		// using start line num to generate key for hash map
+				// using start line num to generate key for hash map
 		int start_line_num = start_data->ltk->line_num;
 		int end_line_num = end_data->ltk->line_num;
 		char *str_line_num = (char *) malloc(25 * sizeof(char));
 		sprintf(str_line_num, "%d", start_line_num);
 		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func, start_line_num, end_line_num);
 		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
+
+		ast_node *aobexpr_data = (ast_node *) get_data(aobexpr_node);
+		if (aobexpr_data->type != -1 && aobexpr_data->type != boolean) {
+			char err_msg[100];
+			sprintf(err_msg, "gaurd condition for while should be boolean type, found %s instead", type_to_str(aobexpr_data->type));
+			display_err("Type", start_line_num, err_msg);
+		}
 
 		// TODO: what to do with aobexpr_node here for code generation
 		// and statements (below)
@@ -848,7 +901,7 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		tree_node *var_node = get_child(astn, 0);
 		
 		if (((ast_leaf *) get_data(var_node))->is_leaf) {
-			printf("output stmt printing const\n");
+			/*printf("output stmt printing const\n");*/
 		}
 		else {
 			second_pass(main_st, var_node, curr_scope);
@@ -934,8 +987,9 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			linked_list *op_ll = fentry->output_param_list;
 
 			if (ret_var_ll->num_nodes != op_ll->num_nodes) {
-				printf("output params count in function call incorrect\n");
-				// TODO: params count mismatch err
+				char err_msg[150];
+				sprintf(err_msg, "output params count mismatch - %d in module definition, %d in module reuse", op_ll->num_nodes, ret_var_ll->num_nodes);
+				display_err("Semantic", id_data->ltk->line_num, err_msg);
 			}
 			else {
 				int pcnt = op_ll->num_nodes;
@@ -948,8 +1002,9 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 						param_node *op_lnode = (param_node *) ll_get(op_ll, i);
 						common_id_entry *op_lentry = param_to_st_entry(op_lnode);
 						if (!is_same_type(ret_var_entry, op_lentry)) {
-							printf("type mismatch for output params : %s\n", ret_var_name);
-							// TODO: type mismatch between function call and assign
+							char err_msg[100];
+							sprintf(err_msg, "incorrect type for output param '%s' in module reuse", ret_var_name);
+							display_err("Semantic", ret_var_data->ltk->line_num, err_msg);
 						}
 					}
 				}
@@ -961,21 +1016,24 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		linked_list *ip_ll = fentry->input_param_list;
 
 		if (arg_var_ll->num_nodes != ip_ll->num_nodes) {
-			printf("input params count in function call incorrect\n");
-			// TODO: params count mismatch err
+			char err_msg[150];
+			sprintf(err_msg, "input params count mismatch - %d in module definition, %d in module reuse", ip_ll->num_nodes, arg_var_ll->num_nodes);
+			display_err("Semantic", id_data->ltk->line_num, err_msg);
 		}
 		else {
 			int pcnt = ip_ll->num_nodes;
 			for (int i = 0; i < pcnt; i++) {
 				tree_node *arg_var_lnode = (tree_node *) ll_get(arg_var_ll, i);
-				char *arg_var_name = ((ast_leaf *) get_data(arg_var_lnode))->ltk->lexeme;
+				ast_leaf *arg_var_data = (ast_leaf *) get_data(arg_var_lnode);
+				char *arg_var_name = arg_var_data->ltk->lexeme;
 				common_id_entry *arg_var_entry = find_id_for_use(arg_var_name, curr_scope);
 				if (arg_var_entry != NULL) {
 					param_node *ip_lnode = (param_node *) ll_get(ip_ll, i);
 					common_id_entry *ip_lentry = param_to_st_entry(ip_lnode);
 					if (!is_same_type(arg_var_entry, ip_lentry)) {
-						printf("type mismatch for input params : %s\n", arg_var_name);
-						// TODO: type mismatch between function call and assign
+						char err_msg[100];
+						sprintf(err_msg, "incorrect type for input param '%s' in module reuse", arg_var_name);
+						display_err("Semantic", arg_var_data->ltk->line_num, err_msg);
 					}
 				}
 			}

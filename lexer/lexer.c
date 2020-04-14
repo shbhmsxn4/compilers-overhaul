@@ -135,7 +135,9 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         {
             terminal t = *((int *)hm_result);
             ltk->t = t;
-            ltk->lexeme = NULL;
+			/*ltk->lexeme = NULL;*/
+            ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+            strcpy(ltk->lexeme, lexeme);
             ltk->line_num = line_num;
             ltk->char_num = char_num;
             ltk->nv.int_val = 0;

@@ -105,7 +105,7 @@ int main (int argc, char *argv[]) {
 				hash_map *khm = create_keyword_hash_map(15);
 
 				lexer *l = create_lexer("/home/kunal/Desktop/github/compilers-overhaul/test2.txt", "/home/kunal/Desktop/github/compilers-overhaul/lang_specs/dfa_specs", 512, 32, 30, khm);
-				/*lexer *l = create_lexer("/home/kunal/Desktop/github/compilers-overhaul/testcases_stage2/t10.txt", "/home/kunal/Desktop/github/compilers-overhaul/lang_specs/dfa_specs", 512, 32, 30, khm);*/
+				/*lexer *l = create_lexer("/home/kunal/Desktop/github/compilers-overhaul/testcases_stage2/t1.txt", "/home/kunal/Desktop/github/compilers-overhaul/lang_specs/dfa_specs", 512, 32, 30, khm);*/
 
 				grammar *gm = parse_grammar("/home/kunal/Desktop/github/compilers-overhaul/lang_specs/grammar", thm, nthm);
 

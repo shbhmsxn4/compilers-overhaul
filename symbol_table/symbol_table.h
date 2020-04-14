@@ -5,8 +5,10 @@
 #include "./symbol_table_def.h"
 #include "../ast/generate_ast.h"
 
+void display_err (char *err_type, int line, char *err_msg);
 hash_map *create_symbol_table ();
 id_type terminal_to_type (terminal t);
+char *type_to_str (id_type t);
 id_type get_type_from_node (tree_node *node);
 int get_width_from_type (id_type t); 
 int* get_static_range (tree_node *node);
@@ -22,10 +24,10 @@ param_node *find_id_in_paramsll (char *lexeme, linked_list *pll);
 param_node *find_id_in_inputparams (char *lexeme, func_entry *entry);
 param_node *find_id_in_outputparams (char *lexeme, func_entry *entry);
 common_id_entry *param_to_st_entry (param_node *p);
-common_id_entry *find_id_for_decl (char *lexeme, scope_node *curr_scope);
+common_id_entry *find_id_for_decl (char *lexeme, scope_node *curr_scope, int line_num);
 common_id_entry *find_id_for_use (char *lexeme, scope_node *curr_scope);
-common_id_entry *find_id_for_assign (char *lexeme, scope_node *curr_scope);
-common_id_entry *find_id_for (char *lexeme, scope_node *curr_scope, reason_flag need_for);
+common_id_entry *find_id_for_assign (char *lexeme, scope_node *curr_scope, int line_num);
+common_id_entry *find_id_for (char *lexeme, scope_node *curr_scope, reason_flag need_for, int line_num);
 bool match_array_type (arr_id_entry *arr1, arr_id_entry *arr2);
 int bound_type_check (arr_id_entry *entry, ast_leaf *index_data, scope_node *curr_scope);
 common_id_entry *type_check_var (ast_leaf *id_data, ast_leaf *index_node, scope_node *curr_scope, reason_flag need_for);

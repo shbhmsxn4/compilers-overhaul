@@ -7,6 +7,10 @@
 #define DEFAULT_ST_SIZE 71
 #define DEFAULT_SCOPE_SIZE 41
 
+void display_err (char *err_type, int line, char *err_msg) {
+	printf("%s error at line %d : %s\n", err_type, line, err_msg);
+}
+
 id_type terminal_to_type (terminal t) {
 	switch (t) {
 		case INTEGER : return integer;
@@ -51,6 +55,7 @@ int* get_static_range (tree_node *node) {
 	ast_leaf *index1 = (ast_leaf *) get_data(get_child(node, 0));
 	ast_leaf *index2 = (ast_leaf *) get_data(get_child(node, 1));
 
+	// NOTE: no need to type check bcuz static range always has NUM
 	// if dynamic then range value is -1
 	indices[0] = (index1->label.gms.t == ID) ? -1 : index1->ltk->nv.int_val;
 	indices[1] = (index2->label.gms.t == ID) ? -1 : index2->ltk->nv.int_val;
@@ -69,14 +74,16 @@ common_id_entry** get_dynamic_range (tree_node *node, scope_node *curr_scope) {
 		common_id_entry *var_entry = type_check_var(index1, NULL, curr_scope, for_use);
 		indices[0] = var_entry;
 		if (var_entry->is_array) {
-			// TODO:
-			printf("range var should be integer\n");
+			char err_msg[100];
+			sprintf(err_msg, "range var '%s' should be of type integer, found array instead", index1->ltk->lexeme);
+			display_err("Type", index1->ltk->line_num, err_msg);
 		}
 		else {
 			var_id_entry *entry = var_entry->entry.var_entry;
 			if (entry->type != integer) {
-				// TODO:
-				printf("range var should be integer\n");
+				char err_msg[100];
+				sprintf(err_msg, "range var '%s' should be of type integer, found %s instead", index1->ltk->lexeme, type_to_str(entry->type));
+				display_err("Type", index1->ltk->line_num, err_msg);
 			}
 		}
 	}
@@ -85,14 +92,16 @@ common_id_entry** get_dynamic_range (tree_node *node, scope_node *curr_scope) {
 		common_id_entry *var_entry = type_check_var(index2, NULL, curr_scope, for_use);
 		indices[1] = var_entry;
 		if (var_entry->is_array) {
-			// TODO:
-			printf("range var should be integer\n");
+			char err_msg[100];
+			sprintf(err_msg, "range var '%s' should be of type integer, found array instead", index2->ltk->lexeme);
+			display_err("Type", index2->ltk->line_num, err_msg);
 		}
 		else {
 			var_id_entry *entry = var_entry->entry.var_entry;
 			if (entry->type != integer) {
-				// TODO:
-				printf("range var should be integer\n");
+				char err_msg[100];
+				sprintf(err_msg, "range var '%s' should be of type integer, found %s instead", index2->ltk->lexeme, type_to_str(entry->type));
+				display_err("Type", index2->ltk->line_num, err_msg);
 			}
 		}
 	}
@@ -223,9 +232,11 @@ common_id_entry *param_to_st_entry (param_node *p) {
 	return centry;
 }
 
-common_id_entry *find_id_for_decl (char *lexeme, scope_node *curr_scope) {
+common_id_entry *find_id_for_decl (char *lexeme, scope_node *curr_scope, int line_num) {
 	if (curr_scope->loop_var_entry != NULL && strcmp(lexeme, curr_scope->loop_var_entry->lexeme) == 0) {
-		// TODO: loop var not allowed to use err
+		char err_msg[100];
+		sprintf(err_msg, "Loop variable '%s' cannot be re-declared", lexeme);
+		display_err("Semantic", line_num, err_msg);
 	}
 
 	common_id_entry *sentry = find_id_in_scope(lexeme, curr_scope);
@@ -249,10 +260,11 @@ common_id_entry *find_id_for_use (char *lexeme, scope_node *curr_scope) {
 	return NULL;
 }
 
-common_id_entry *find_id_for_assign (char *lexeme, scope_node *curr_scope) {
+common_id_entry *find_id_for_assign (char *lexeme, scope_node *curr_scope, int line_num) {
 	if (curr_scope->loop_var_entry != NULL && strcmp(lexeme, curr_scope->loop_var_entry->lexeme) == 0) {
-		printf("loop var should not be redefined in body\n");
-		// TODO: loop var not allowed to use err
+		char err_msg[100];
+		sprintf(err_msg, "Loop variable '%s' cannot be re-defined", lexeme);
+		display_err("Semantic", line_num, err_msg);
 	}
 
 	common_id_entry *rentry = find_id_rec(lexeme, curr_scope);
@@ -268,14 +280,14 @@ common_id_entry *find_id_for_assign (char *lexeme, scope_node *curr_scope) {
 	return param_to_st_entry(ip);
 }
 
-common_id_entry *find_id_for (char *lexeme, scope_node *curr_scope, reason_flag need_for) {
+common_id_entry *find_id_for (char *lexeme, scope_node *curr_scope, reason_flag need_for, int line_num) {
 	common_id_entry *ret;
 	switch (need_for) {
-		case for_decl : ret = find_id_for_decl(lexeme, curr_scope);
+		case for_decl : ret = find_id_for_decl(lexeme, curr_scope, line_num);
 						break;
 		case for_use : ret = find_id_for_use(lexeme, curr_scope);
 					   break;
-		case for_assign : ret = find_id_for_assign(lexeme, curr_scope);
+		case for_assign : ret = find_id_for_assign(lexeme, curr_scope, line_num);
 						  break;
 		default : assert(false, "invalid need_for reason flag\n");
 				  ret = NULL;
@@ -299,27 +311,30 @@ int bound_type_check (arr_id_entry *entry, ast_leaf *index_data, scope_node *cur
 			
 			int ind = index_data->ltk->nv.int_val;
 			if (ind < entry->range_start || ind > entry->range_end) {
-				printf("index out of range - static arr & index\n");
-				// TODO: out of bounds err
+				char err_msg[100];
+				sprintf(err_msg, "index '%d' is out of bounds for array '%s'", ind, entry->lexeme);
+				display_err("Semantic", index_data->ltk->line_num, err_msg);
 			}
 			return 1;
 		}
 		else {
 			// TODO: run time bound check - arr static but index dynamic
-			printf("run time bound check - arr dynamic, index static\n");
+			/*printf("run time bound check - arr dynamic, index static\n");*/
 		}
 	}
 	else {
 		char *ind_var_name = index_data->ltk->lexeme;
-		common_id_entry *ind_entry = find_id_for_use(ind_var_name, curr_scope);
+		common_id_entry *ind_entry = type_check_var(index_data, NULL, curr_scope, for_use);
 
-		if (ind_entry == NULL) {
-			printf("undeclared var : %s\n", ind_var_name);
-			// TODO: 
-		}
-		else if (ind_entry->is_array || ind_entry->entry.var_entry->type != integer) {
-			printf("index var should be integer\n");
-			// TODO: 
+		if (ind_entry != NULL) {
+			char err_msg[100];
+			if (ind_entry->is_array) {
+				sprintf(err_msg, "index '%s' should be integer, found array", ind_var_name);
+			}
+			else if (ind_entry->entry.var_entry->type != integer) {
+				sprintf(err_msg, "index '%s' should be integer, found %s", ind_var_name, type_to_str(ind_entry->entry.var_entry->type));
+			}
+			display_err("Semantic", index_data->ltk->line_num, err_msg);
 		}
 		// TODO: run time bound check for dynamic arrs
 	}
@@ -328,15 +343,17 @@ int bound_type_check (arr_id_entry *entry, ast_leaf *index_data, scope_node *cur
 
 common_id_entry *type_check_var (ast_leaf *id_data, ast_leaf *index_node, scope_node *curr_scope, reason_flag need_for) {
 	char *var_name = id_data->ltk->lexeme;
-	common_id_entry *entry = find_id_for(var_name, curr_scope, need_for);
+	common_id_entry *entry = find_id_for(var_name, curr_scope, need_for, id_data->ltk->line_num);
 	if (entry == NULL) {
-		printf("undeclared var : %s\n", var_name);
-		// TODO: undeclared id
+		char err_msg[100];
+		sprintf(err_msg, "'%s' variable undeclared", var_name);
+		display_err("Semantic", id_data->ltk->line_num, err_msg);
 	}
 	else if (index_node != NULL) {
 		if (!entry->is_array) {
-			printf("var %s should be arr\n", var_name);
-			// TODO: type err - should be array
+			char err_msg[100];
+			sprintf(err_msg, "'%s' variable should be an array to be indexed, found %s", var_name, type_to_str(entry->entry.var_entry->type));
+			display_err("Type", id_data->ltk->line_num, err_msg);
 		}
 		else {
 			arr_id_entry *aentry = entry->entry.arr_entry;
@@ -386,14 +403,14 @@ void arr_assign_offset (arr_id_entry *entry, func_entry *func) {
 	else {
 		func->width = func_width + ASM_ADDR_SIZE;
 	}
-	printf("var width off : %s %d %d\n", entry->lexeme, entry->width, entry->offset);
+	/*printf("var width off : %s %d %d\n", entry->lexeme, entry->width, entry->offset);*/
 }
 
 void var_assign_offset (var_id_entry *entry, func_entry *func) {
 	int func_width = func->width;
 	entry->offset = func_width;
 	func->width = func->width + entry->width;
-	printf("var width off : %s %d %d\n", entry->lexeme, entry->width, entry->offset);
+	/*printf("var width off : %s %d %d\n", entry->lexeme, entry->width, entry->offset);*/
 }
 
 hash_map *create_symbol_table () {
@@ -421,24 +438,29 @@ void print_arr_entry (arr_id_entry *entry, scope_node *curr_scope, int level) {
 	char static_or_dynamic[10];
 	sprintf(static_or_dynamic, (entry->is_static) ? "static" : "dynamic");
 
+	if (entry == NULL) return;
 	char rstart[20];
 	if (entry->range_start == -1) {
 		common_id_entry *rentry = entry->rstart_entry;
-		if (rentry->is_array)
-			sprintf(rstart, "%s", rentry->entry.arr_entry->lexeme);
-		else
-			sprintf(rstart, "%s", rentry->entry.var_entry->lexeme);
+		if (rentry != NULL) {
+			if (rentry->is_array)
+				sprintf(rstart, "%s", rentry->entry.arr_entry->lexeme);
+			else
+				sprintf(rstart, "%s", rentry->entry.var_entry->lexeme);
+		}
 	}
 	else
 		sprintf(rstart, "%d", entry->range_start);
 
 	char rend[20];
 	if (entry->range_end == -1) {
-		common_id_entry *rentry = entry->rstart_entry;
-		if (rentry->is_array)
-			sprintf(rstart, "%s", rentry->entry.arr_entry->lexeme);
-		else
-			sprintf(rstart, "%s", rentry->entry.var_entry->lexeme);
+		common_id_entry *rentry = entry->rend_entry;
+		if (rentry != NULL) {
+			if (rentry->is_array)
+				sprintf(rend, "%s", rentry->entry.arr_entry->lexeme);
+			else
+				sprintf(rend, "%s", rentry->entry.var_entry->lexeme);
+		}
 	}
 	else
 		sprintf(rend, "%d", entry->range_end);
