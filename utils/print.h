@@ -25,4 +25,9 @@ void print_parse_stack(stack *s);
 void print_ast_tree(tree *ast);
 
 void print_rule(gm_rule *rule);
+
+void calc_mem_ast (tree *t, int *total_mem, int *num_nodes);
+
+void calc_mem_parse_tree (tree *t, int *total_mem, int *num_nodes);
+
 #endif

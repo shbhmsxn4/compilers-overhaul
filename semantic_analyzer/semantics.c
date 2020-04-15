@@ -241,9 +241,9 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 
 	if (ast_nt == output_stmt) {
 		tree_node *var_node = get_child(astn, 0);
-		
-		if (((ast_leaf *) get_data(var_node))->is_leaf) {
-			/*printf("output stmt printing const\n");*/
+		ast_leaf *var_data = ((ast_leaf *) get_data(var_node));
+		if (var_data->is_leaf) {
+			// TODO:
 		}
 		else {
 			first_pass(main_st, var_node, curr_scope);

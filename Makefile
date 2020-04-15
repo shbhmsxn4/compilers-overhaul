@@ -64,7 +64,7 @@ generate_parse_table.o : ./utils/generate_parse_table.h ./utils/generate_parse_t
 driver.o : driver.c
 	gcc -c driver.c
 
-new_driver.o : new_driver.c
+new_driver.o : driver.h new_driver.c
 	gcc -c new_driver.c
 
 lexer.o : ./lexer/lexer.h ./lexer/lexer.c

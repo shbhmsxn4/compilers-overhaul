@@ -3,12 +3,15 @@
 #include "./symbol_table.h"
 #include "../ast/generate_ast.h"
 #include "../data_structs/tree.h"
+#include "../driver.h"
 
 #define DEFAULT_ST_SIZE 71
 #define DEFAULT_SCOPE_SIZE 41
 
+// global `display_err_flag` used
 void display_err (char *err_type, int line, char *err_msg) {
-	printf("%s error at line %d : %s\n", err_type, line, err_msg);
+	if (display_err_flag)
+		printf("%s error at line %d : %s\n", err_type, line, err_msg);
 }
 
 id_type terminal_to_type (terminal t) {
@@ -426,7 +429,7 @@ hash_map *create_symbol_table () {
 void print_var_entry (var_id_entry *entry, scope_node *curr_scope, int level) {
 	char scope_lines[25];
 	sprintf(scope_lines, "%d-%d", curr_scope->start_line, curr_scope->end_line);
-	printf("%-10s| %-10s| %-15s| %-10d| %-10s| %-15s| %-10s| %-10s| %-10d| %-10d\n\n",
+	printf("%-10s| %-10s| %-15s| %-10d| %-10s| %-15s| %-15s| %-10s| %-10d| %-10d\n\n",
 			entry->lexeme, curr_scope->func->name, scope_lines, entry->width, "no", "---", "---",
 			type_to_str(entry->type), entry->offset, level);
 
@@ -468,16 +471,26 @@ void print_arr_entry (arr_id_entry *entry, scope_node *curr_scope, int level) {
 	char range[40];
 	sprintf(range, "[%s, %s]", rstart, rend);
 
-	printf("%-10s| %-10s| %-15s| %-10d| %-10s| %-15s| %-10s| %-10s| %-10d| %-10d\n\n",
-			entry->lexeme, curr_scope->func->name, scope_lines, entry->width, "yes", static_or_dynamic, range,
-			type_to_str(entry->type), entry->offset, level);
+	if (array_only_flag) {
+		printf("%-10s| %-15s| %-10s| %-15s| %-15s| %-10s\n\n",
+			curr_scope->func->name, scope_lines, entry->lexeme, static_or_dynamic,
+			range, type_to_str(entry->type));
+	}
+	else {
+		printf("%-10s| %-10s| %-15s| %-10d| %-10s| %-15s| %-15s| %-10s| %-10d| %-10d\n\n",
+			entry->lexeme, curr_scope->func->name, scope_lines, entry->width, "yes", static_or_dynamic,
+			range, type_to_str(entry->type), entry->offset, level);
+
+	}
 }
 
 void print_scope (scope_node *curr_scope, int level) {
-	hm_node *var_list = get_all_hm_nodes(curr_scope->var_id_st);
-	while (var_list != NULL) {
-		print_var_entry(var_list->data, curr_scope, level);
-		var_list = var_list->next;
+	if (!array_only_flag) {
+		hm_node *var_list = get_all_hm_nodes(curr_scope->var_id_st);
+		while (var_list != NULL) {
+			print_var_entry(var_list->data, curr_scope, level);
+			var_list = var_list->next;
+		}
 	}
 
 	hm_node *arr_list = get_all_hm_nodes(curr_scope->arr_st);
@@ -500,7 +513,7 @@ void print_param_list (linked_list *plist, scope_node *curr_scope) {
 		if (pnode->is_array) {
 			print_arr_entry(pnode->param.arr_entry, curr_scope, 0);
 		}
-		else {
+		else if (!array_only_flag) {
 			print_var_entry(pnode->param.var_entry, curr_scope, 0);
 		}
 
@@ -511,12 +524,21 @@ void print_param_list (linked_list *plist, scope_node *curr_scope) {
 void print_symbol_table (hash_map *st) {
 	printf("\n********* SYMBOL TABLE *********\n\n");
 
-	printf("%-10s| %-10s| %-15s| %-10s| %-10s| %-15s| %-10s| %-10s| %-10s| %-10s\n",
+	if (array_only_flag) {
+		printf("%-10s| %-15s| %-10s| %-15s| %-15s| %-10s\n",
+			"Scope", "scope lines", "Var name", "static/dynamic", "range", "type");
+		printf("%-10s| %-15s| %-10s| %-15s| %-15s| %-10s\n",
+			"--------", "--------", "--------", "--------", "--------", "--------");
+	}
+	else {
+		printf("%-10s| %-10s| %-15s| %-10s| %-10s| %-15s| %-15s| %-10s| %-10s| %-10s\n",
 			"Var name", "Scope", "scope lines", "width", "is array", "static/dynamic", "range",
 			"type", "offset", "nesting level");
-	printf("%-10s| %-10s| %-15s| %-10s| %-10s| %-15s| %-10s| %-10s| %-10s| %-10s\n",
+		printf("%-10s| %-10s| %-15s| %-10s| %-10s| %-15s| %-15s| %-10s| %-10s| %-10s\n",
 			"--------", "--------", "--------", "--------", "--------", "--------", "--------",
 			"--------", "--------", "--------");
+	}
+
 
 	hm_node *module_list = get_all_hm_nodes(st);
 	while (module_list != NULL) {
@@ -531,6 +553,21 @@ void print_symbol_table (hash_map *st) {
 		print_param_list(op_ll, module_entry->local_scope);
 
 		print_scope(module_entry->local_scope, 1);
+		module_list = module_list->next;
+	}
+}
+
+void print_ar_size (hash_map *st) {
+	printf("\n********* ACTIVATION RECORD SIZE *********\n\n");
+	printf("%-15s| %-10s\n", "Module", "Size");
+	printf("%-15s| %-10s\n", "--------", "--------");
+
+	hm_node *module_list = get_all_hm_nodes(st);
+	while (module_list != NULL) {
+		func_entry *module_entry = (func_entry *) module_list->data;
+
+		printf("%-15s| %-10d\n\n", module_entry->name, module_entry->width);
+
 		module_list = module_list->next;
 	}
 }

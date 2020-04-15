@@ -241,3 +241,121 @@ void print_parse_stack(stack *s)
     }
     free(temp);
 }
+
+int get_ast_leaf_size (ast_leaf *l) {
+	int mem = 0;
+	if (l != NULL) {
+		mem += sizeof(ast_leaf);
+		if (l->ltk != NULL) {
+			mem += sizeof(lexical_token);
+			if (l->ltk->lexeme != NULL) {
+				mem += (strlen(l->ltk->lexeme) * sizeof(char));
+			}
+		}
+	}
+	return mem;
+}
+
+void calc_mem_ast_subtree (tree_node *tn, int *total_mem, int *num_nodes)
+{
+	*total_mem = *total_mem + sizeof(tree_node);
+	*num_nodes = *num_nodes + 1;
+
+    void *data = get_data(tn);
+
+    if (data == NULL)
+    {
+        return;
+    }
+    if (((ast_node *)data)->is_leaf == false)
+    {
+		*total_mem = *total_mem + sizeof(ast_node);
+
+        ast_node *n = (ast_node *)data;
+        
+        if (n->ll != NULL)
+        {
+			*total_mem = *total_mem + (n->ll->num_nodes * sizeof(ll_node));
+			*total_mem = *total_mem + sizeof(linked_list);
+            for (int j = 0; j < n->ll->num_nodes; j++)
+            {
+                calc_mem_ast_subtree (ll_get(n->ll, j), total_mem, num_nodes);
+            }
+        }
+    }
+    else
+    {
+        ast_leaf *n = (ast_leaf *)data;
+		*total_mem = *total_mem + get_ast_leaf_size(data);
+    }
+
+    int num_children = get_num_children(tn);
+    for (int i = 0; i < num_children; i++)
+    {
+        tree_node *child = get_child(tn, i);
+        calc_mem_ast_subtree (child, total_mem, num_nodes);
+    }
+}
+
+void calc_mem_ast (tree *t, int *total_mem, int *num_nodes) {
+	*total_mem = *total_mem + sizeof(tree);
+	calc_mem_ast_subtree (get_root(t), total_mem, num_nodes);
+}
+
+int get_pt_leaf_size (pt_leaf *l) {
+	int mem = 0;
+	if (l != NULL) {
+		mem += sizeof(pt_leaf);
+		if (l->lt != NULL) {
+			mem += sizeof(lexical_token);
+			if (l->lt->lexeme != NULL) {
+				mem += (strlen(l->lt->lexeme) * sizeof(char));
+			}
+		}
+	}
+	return mem;
+}
+
+int get_pt_node_size (pt_node *n) {
+	int mem = 0;
+
+	if (n != NULL) {
+		mem += sizeof(pt_node);
+		if (n->rule != NULL) {
+			mem += sizeof(gm_rule);
+			if (n->rule->rhs != NULL) {
+				mem += sizeof(gm_unit);
+			}
+		}
+	}
+
+	return mem;
+}
+
+void calc_mem_parse_subtree (tree_node *ptn, int *total_mem, int *num_nodes)
+{
+	*total_mem = *total_mem + sizeof(tree_node);
+	*num_nodes = *num_nodes + 1;
+
+	int num_children = get_num_children(ptn);
+	if (num_children == 0)
+	{
+		pt_leaf *l = (pt_leaf *)get_data(ptn);
+		*total_mem = *total_mem + get_pt_leaf_size(l);
+	}
+	else
+	{
+		pt_node *n = get_data(ptn);
+		*total_mem = *total_mem + get_pt_node_size(n);
+
+		for (int i = 0; i < num_children; i++)
+		{
+			calc_mem_parse_subtree(get_child(ptn, i), total_mem, num_nodes);
+		}
+	}
+}
+
+void calc_mem_parse_tree (tree *t, int *total_mem, int *num_nodes) {
+	*total_mem = *total_mem + sizeof(tree);
+	calc_mem_parse_subtree (get_root(t), total_mem, num_nodes);
+}

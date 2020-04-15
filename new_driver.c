@@ -28,7 +28,10 @@
 #include "./symbol_table/symbol_table.h"
 #include "./symbol_table/symbol_table_def.h"
 #include "./semantic_analyzer/semantics.h"
+#include "./driver.h"
 
+bool display_err_flag = true;
+bool array_only_flag = false;
 
 int main (int argc, char *argv[]) {
 
@@ -49,7 +52,19 @@ int main (int argc, char *argv[]) {
 	 *printf("-> Parse tree constructed.\n");
 	 *printf("-> Error recovery done for both lexer & parser.\n");
 	 */
-	
+	hash_map *thm, *nthm, *khm;
+	lexer *l;
+	grammar *gm;
+	gm_first *fi;
+	gm_follow *fo;
+	parse_table *pt;
+	tree *ptree, *ast_tree;
+	hash_map *main_st;
+
+	/*char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/revisedtests/t1.txt";*/
+	char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/test2.txt";
+	char dfa_specs_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/lang_specs/dfa_specs";
+	char grammar_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/lang_specs/grammar";
 
 	while (1) {
 		printf("\n");
@@ -95,45 +110,154 @@ int main (int argc, char *argv[]) {
 			case 4:
 				printf("Option selected: 4 (Memory)\n");
 
+				display_err_flag = false;
+				array_only_flag = false;
+
+				thm = create_terminal_hash_map(15);
+				nthm = create_nonterminal_hash_map(15);
+				khm = create_keyword_hash_map(15);
+
+				l = create_lexer(test_file, dfa_specs_file, 512, 32, 30, khm);
+				gm = parse_grammar(grammar_file, thm, nthm);
+
+				fi = get_first(gm);
+				fo = get_follow(gm, fi);
+				pt = generate_parse_table(gm, fi, fo);
+				ptree = parse(l, gm, pt);
+
+				ast_tree = generate_ast(ptree);
+
+				printf("\n\n");
+				int pt_mem = 0, pt_nodes = 0;
+				calc_mem_parse_tree(ptree, &pt_mem, &pt_nodes);
+				printf("Total number of Parse tree nodes: %d\n", pt_nodes);
+				printf("Total memory used by Parse tree: %d bytes\n", pt_mem);
+				printf("\n");
+
+				int ast_mem = 0, ast_nodes = 0;
+				calc_mem_ast(ast_tree, &ast_mem, &ast_nodes);
+				printf("Total number of AST tree nodes: %d\n", ast_nodes);
+				printf("Total memory used by AST: %d bytes\n", ast_mem);
+				printf("\n");
+
+				double comp_ratio = ((double)(pt_mem - ast_mem))/((double)pt_mem);
+				printf("Compression ratio: %lf\n", comp_ratio*100);
 				break;
 
 			case 5:
 				printf("Option selected: 5 (Symbol Table)\n");
 
-				hash_map *thm = create_terminal_hash_map(15);
-				hash_map *nthm = create_nonterminal_hash_map(15);
-				hash_map *khm = create_keyword_hash_map(15);
+				display_err_flag = false;
+				array_only_flag = false;
 
-				lexer *l = create_lexer("/home/kunal/Desktop/github/compilers-overhaul/test2.txt", "/home/kunal/Desktop/github/compilers-overhaul/lang_specs/dfa_specs", 512, 32, 30, khm);
-				/*lexer *l = create_lexer("/home/kunal/Desktop/github/compilers-overhaul/testcases_stage2/t1.txt", "/home/kunal/Desktop/github/compilers-overhaul/lang_specs/dfa_specs", 512, 32, 30, khm);*/
+				thm = create_terminal_hash_map(15);
+				nthm = create_nonterminal_hash_map(15);
+				khm = create_keyword_hash_map(15);
 
-				grammar *gm = parse_grammar("/home/kunal/Desktop/github/compilers-overhaul/lang_specs/grammar", thm, nthm);
+				l = create_lexer(test_file, dfa_specs_file, 512, 32, 30, khm);
+				gm = parse_grammar(grammar_file, thm, nthm);
 
-				gm_first *fi = get_first(gm);
-				gm_follow *fo = get_follow(gm, fi);
-				parse_table *pt = generate_parse_table(gm, fi, fo);
-				tree *ptree = parse(l, gm, pt);
+				fi = get_first(gm);
+				fo = get_follow(gm, fi);
+				pt = generate_parse_table(gm, fi, fo);
+				ptree = parse(l, gm, pt);
 
-				tree *ast_tree = generate_ast(ptree);
+				ast_tree = generate_ast(ptree);
 				/*print_ast_tree(ast_tree);*/
 				
-				hash_map *main_st = call_semantic_analyzer(ast_tree);
+				main_st = call_semantic_analyzer(ast_tree);
 				print_symbol_table(main_st);
 
 				break;
 
 			case 6:
-				printf("Option selected: 6 (Activation Record)\n");
+				printf("Option selected: 6 (Activation Record size)\n");
+
+				display_err_flag = false;
+				array_only_flag = false;
+
+				thm = create_terminal_hash_map(15);
+				nthm = create_nonterminal_hash_map(15);
+				khm = create_keyword_hash_map(15);
+
+				l = create_lexer(test_file, dfa_specs_file, 512, 32, 30, khm);
+				gm = parse_grammar(grammar_file, thm, nthm);
+			
+				fi = get_first(gm);
+				fo = get_follow(gm, fi);
+				pt = generate_parse_table(gm, fi, fo);
+				ptree = parse(l, gm, pt);
+
+				ast_tree = generate_ast(ptree);
+				/*print_ast_tree(ast_tree);*/
+				
+				main_st = call_semantic_analyzer(ast_tree);
+				print_ar_size(main_st);
 
 				break;
 
 			case 7:
 				printf("Option selected: 7 (Static and Dynamic arrays)\n");
 
+				display_err_flag = false;
+				array_only_flag = true;
+
+				thm = create_terminal_hash_map(15);
+				nthm = create_nonterminal_hash_map(15);
+				khm = create_keyword_hash_map(15);
+
+				l = create_lexer(test_file, dfa_specs_file, 512, 32, 30, khm);
+				gm = parse_grammar(grammar_file, thm, nthm);
+				
+				fi = get_first(gm);
+				fo = get_follow(gm, fi);
+				pt = generate_parse_table(gm, fi, fo);
+				ptree = parse(l, gm, pt);
+
+				ast_tree = generate_ast(ptree);
+				/*print_ast_tree(ast_tree);*/
+				
+				main_st = call_semantic_analyzer(ast_tree);
+				print_symbol_table(main_st);
+
 				break;
 
 			case 8:
 				printf("Option selected: 8 (Error reporting and total compiling time)\n");
+
+				clock_t start_time, end_time;
+				double total_CPU_time, total_CPU_time_in_seconds;
+				start_time = clock();
+
+
+				display_err_flag = true;
+				array_only_flag = false;
+
+				thm = create_terminal_hash_map(15);
+				nthm = create_nonterminal_hash_map(15);
+				khm = create_keyword_hash_map(15);
+
+				l = create_lexer(test_file, dfa_specs_file, 512, 32, 30, khm);
+				gm = parse_grammar(grammar_file, thm, nthm);
+				
+				fi = get_first(gm);
+				fo = get_follow(gm, fi);
+				pt = generate_parse_table(gm, fi, fo);
+				ptree = parse(l, gm, pt);
+
+				// TODO: if lexical/syntactical errs, don't procede
+
+				ast_tree = generate_ast(ptree);
+				/*print_ast_tree(ast_tree);*/
+				
+				main_st = call_semantic_analyzer(ast_tree);
+
+				printf("\n\n");
+				end_time = clock();
+				total_CPU_time = (double) (end_time - start_time);
+				total_CPU_time_in_seconds = total_CPU_time / CLOCKS_PER_SEC;
+				printf("TOTAL CPU TIME: %f cycles\n", total_CPU_time);
+				printf("TOTAL CPU TIME IN SECONDS: %f seconds\n", total_CPU_time_in_seconds);
 
 				break;
 
@@ -141,7 +265,10 @@ int main (int argc, char *argv[]) {
 				printf("Option selected: 9 (Code generation)\n");
 
 				break;
-
+			
+			default:
+				printf("Incorrect option\n");
+				break;
 		}
 	}
 }

@@ -36,5 +36,6 @@ bool is_same_type (common_id_entry *a, common_id_entry *b);
 void arr_assign_offset (arr_id_entry *entry, func_entry *func);
 void var_assign_offset (var_id_entry *entry, func_entry *func);
 void print_symbol_table (hash_map *st);
+void print_ar_size (hash_map *st);
 
 #endif
