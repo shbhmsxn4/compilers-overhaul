@@ -11,7 +11,7 @@
 // global `display_err_flag` used
 void display_err (char *err_type, int line, char *err_msg) {
 	if (display_err_flag)
-		printf("%s error at line %d : %s\n", err_type, line, err_msg);
+		printf("%s error at line %d : %s\n\n", err_type, line, err_msg);
 }
 
 id_type terminal_to_type (terminal t) {
@@ -65,8 +65,8 @@ int* get_static_range (tree_node *node) {
 	return indices;
 }
 
-common_id_entry** get_dynamic_range (tree_node *node, scope_node *curr_scope) {
-	common_id_entry **indices = (common_id_entry **) malloc(2*sizeof(var_id_entry*));
+char** get_dynamic_range (tree_node *node, scope_node *curr_scope) {
+	char **indices = (char **) malloc(2*sizeof(char*));
 	indices[0] = NULL;
 	indices[1] = NULL;
 	ast_leaf *index1 = (ast_leaf *) get_data(get_child(node, 0));
@@ -75,39 +75,44 @@ common_id_entry** get_dynamic_range (tree_node *node, scope_node *curr_scope) {
 	// if static then range value is NULL 
 	if (index1->label.gms.t == ID) {
 		common_id_entry *var_entry = type_check_var(index1, NULL, curr_scope, for_use);
-		indices[0] = var_entry;
-		if (var_entry->is_array) {
-			char err_msg[100];
-			sprintf(err_msg, "range var '%s' should be of type integer, found array instead", index1->ltk->lexeme);
-			display_err("Type", index1->ltk->line_num, err_msg);
-		}
-		else {
-			var_id_entry *entry = var_entry->entry.var_entry;
-			if (entry->type != integer) {
+		indices[0] = index1->ltk->lexeme;
+		if (var_entry != NULL) {
+			if (var_entry->is_array) {
 				char err_msg[100];
-				sprintf(err_msg, "range var '%s' should be of type integer, found %s instead", index1->ltk->lexeme, type_to_str(entry->type));
+				sprintf(err_msg, "range var '%s' should be of type integer, found array instead", index1->ltk->lexeme);
 				display_err("Type", index1->ltk->line_num, err_msg);
+			}
+			else {
+				var_id_entry *entry = var_entry->entry.var_entry;
+				if (entry->type != integer) {
+					char err_msg[100];
+					sprintf(err_msg, "range var '%s' should be of type integer, found %s instead", index1->ltk->lexeme, type_to_str(entry->type));
+					display_err("Type", index1->ltk->line_num, err_msg);
+				}
 			}
 		}
 	}
 
 	if (index2->label.gms.t == ID) {
 		common_id_entry *var_entry = type_check_var(index2, NULL, curr_scope, for_use);
-		indices[1] = var_entry;
-		if (var_entry->is_array) {
-			char err_msg[100];
-			sprintf(err_msg, "range var '%s' should be of type integer, found array instead", index2->ltk->lexeme);
-			display_err("Type", index2->ltk->line_num, err_msg);
-		}
-		else {
-			var_id_entry *entry = var_entry->entry.var_entry;
-			if (entry->type != integer) {
+		indices[1] = index2->ltk->lexeme;
+		if (var_entry != NULL) {
+			if (var_entry->is_array) {
 				char err_msg[100];
-				sprintf(err_msg, "range var '%s' should be of type integer, found %s instead", index2->ltk->lexeme, type_to_str(entry->type));
+				sprintf(err_msg, "range var '%s' should be of type integer, found array instead", index2->ltk->lexeme);
 				display_err("Type", index2->ltk->line_num, err_msg);
+			}
+			else {
+				var_id_entry *entry = var_entry->entry.var_entry;
+				if (entry->type != integer) {
+					char err_msg[100];
+					sprintf(err_msg, "range var '%s' should be of type integer, found %s instead", index2->ltk->lexeme, type_to_str(entry->type));
+					display_err("Type", index2->ltk->line_num, err_msg);
+				}
 			}
 		}
 	}
+			
 	return indices;
 }
 
@@ -134,14 +139,14 @@ var_id_entry *create_var_entry (char *lexeme, id_type type, int width, int offse
 	return entry;
 }
 
-arr_id_entry *create_arr_entry (char *lexeme, id_type type, int *rindices, common_id_entry **rentries, int width, int offset) {
+arr_id_entry *create_arr_entry (char *lexeme, id_type type, int *rindices, char **rlexemes, int width, int offset) {
 	arr_id_entry *entry = (arr_id_entry *) malloc(sizeof(arr_id_entry));
 	strcpy(entry->lexeme, lexeme);
 	entry->type = type;
 	entry->range_start = rindices[0];
 	entry->range_end = rindices[1];
-	entry->rstart_entry = (rentries == NULL) ? NULL : rentries[0];
-	entry->rend_entry = (rentries == NULL) ? NULL : rentries[1];
+	entry->rstart_lexeme = (rlexemes == NULL) ? NULL : rlexemes[0];
+	entry->rend_lexeme = (rlexemes == NULL) ? NULL : rlexemes[1];
 	entry->width = (width != -1) ? width : get_width_from_type(type);
 	entry->offset = offset;
 
@@ -266,7 +271,7 @@ common_id_entry *find_id_for_use (char *lexeme, scope_node *curr_scope) {
 common_id_entry *find_id_for_assign (char *lexeme, scope_node *curr_scope, int line_num) {
 	if (curr_scope->loop_var_entry != NULL && strcmp(lexeme, curr_scope->loop_var_entry->lexeme) == 0) {
 		char err_msg[100];
-		sprintf(err_msg, "Loop variable '%s' cannot be re-defined", lexeme);
+		sprintf(err_msg, "Loop variable '%s' cannot be assigned a value", lexeme);
 		display_err("Semantic", line_num, err_msg);
 	}
 
@@ -386,9 +391,15 @@ bool is_same_type (common_id_entry *a, common_id_entry *b) {
 	else if (a->is_array) {
 		arr_id_entry *aentry = a->entry.arr_entry;
 		arr_id_entry *bentry = b->entry.arr_entry;
-		return (aentry->type == bentry->type &&
+		
+		if (aentry->is_static && bentry->is_static) {
+			return (aentry->type == bentry->type &&
 				aentry->range_start == bentry->range_start &&
 				aentry->range_end == bentry->range_end);
+		}
+		else {
+			return (aentry->type == bentry->type);
+		}
 	}
 	else {
 		var_id_entry *aentry = a->entry.var_entry;
@@ -444,26 +455,34 @@ void print_arr_entry (arr_id_entry *entry, scope_node *curr_scope, int level) {
 	if (entry == NULL) return;
 	char rstart[20];
 	if (entry->range_start == -1) {
-		common_id_entry *rentry = entry->rstart_entry;
-		if (rentry != NULL) {
-			if (rentry->is_array)
-				sprintf(rstart, "%s", rentry->entry.arr_entry->lexeme);
-			else
-				sprintf(rstart, "%s", rentry->entry.var_entry->lexeme);
+		char *rlex = entry->rstart_lexeme;
+		if (rlex != NULL) {
+			/*
+			 *if (rentry->is_array)
+			 *    sprintf(rstart, "%s", rentry->entry.arr_entry->lexeme);
+			 *else
+			 *    sprintf(rstart, "%s", rentry->entry.var_entry->lexeme);
+			 */
+			sprintf(rstart, "%s", rlex);
 		}
+		else strcpy(rstart, "-");
 	}
 	else
 		sprintf(rstart, "%d", entry->range_start);
 
 	char rend[20];
 	if (entry->range_end == -1) {
-		common_id_entry *rentry = entry->rend_entry;
-		if (rentry != NULL) {
-			if (rentry->is_array)
-				sprintf(rend, "%s", rentry->entry.arr_entry->lexeme);
-			else
-				sprintf(rend, "%s", rentry->entry.var_entry->lexeme);
+		char *rlex = entry->rend_lexeme;
+		if (rlex != NULL) {
+			/*
+			 *if (rentry->is_array)
+			 *    sprintf(rend, "%s", rentry->entry.arr_entry->lexeme);
+			 *else
+			 *    sprintf(rend, "%s", rentry->entry.var_entry->lexeme);
+			 */
+			sprintf(rend, "%s", rlex);
 		}
+		else strcpy(rend, "-");
 	}
 	else
 		sprintf(rend, "%d", entry->range_end);
@@ -478,7 +497,7 @@ void print_arr_entry (arr_id_entry *entry, scope_node *curr_scope, int level) {
 	}
 	else {
 		printf("%-10s| %-10s| %-15s| %-10d| %-10s| %-15s| %-15s| %-10s| %-10d| %-10d\n\n",
-			entry->lexeme, curr_scope->func->name, scope_lines, entry->width, "yes", static_or_dynamic,
+			entry->lexeme, curr_scope->func->name, scope_lines, entry->width+1, "yes", static_or_dynamic,
 			range, type_to_str(entry->type), entry->offset, level);
 
 	}

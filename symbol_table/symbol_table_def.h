@@ -37,8 +37,10 @@ typedef struct ___ARRAY_ST_ENTRY___ {
 	id_type type;
 	int range_start;
 	int range_end;
-	common_id_entry *rstart_entry;
-	common_id_entry *rend_entry;
+	//common_id_entry *rstart_entry;
+	//common_id_entry *rend_entry;
+	char *rstart_lexeme;
+	char *rend_lexeme;
 	int width; // for arrays, width is the width of single elem
 	int offset; // TODO: after dynamic arrays are discussed
 	bool is_static;
