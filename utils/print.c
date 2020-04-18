@@ -100,115 +100,185 @@ void print_parse_table(parse_table *pt)
     free(temp);
 }
 
-void print_parse_subtree(tree_node *ptn, int level)
+void print_parse_subtree(tree_node *ptn, int level, char *parent_symbol)
 {
 
-    char *temp = calloc(50, sizeof(char));
+/*
+ *    char *temp = calloc(50, sizeof(char));
+ *    int num_children = get_num_children(ptn);
+ *    if (num_children == 0)
+ *    {
+ *
+ *        pt_leaf *l = (pt_leaf *)get_data(ptn);
+ *
+ *        for (int j = 0; j < level; j++)
+ *        {
+ *            printf("| ");
+ *        }
+ *
+ *        terminal_name(l->lt->t, temp);
+ *        printf("%s (%d, %d)\n", temp, l->lt->line_num, l->lt->char_num);
+ *    }
+ *    else
+ *    {
+ *        pt_node *n = get_data(ptn);
+ *        nonterminal_name(n->nt, temp);
+ *        for (int j = 0; j < level; j++)
+ *        {
+ *            printf("| ");
+ *        }
+ *        printf("%s\n", temp);
+ *        for (int i = 0; i < num_children; i++)
+ *        {
+ *            print_parse_subtree(get_child(ptn, i), level + 1);
+ *        }
+ *    }
+ *    free(temp);
+ */
+
+	char *temp = calloc(50, sizeof(char));
     int num_children = get_num_children(ptn);
     if (num_children == 0)
     {
-
         pt_leaf *l = (pt_leaf *)get_data(ptn);
 
-        for (int j = 0; j < level; j++)
-        {
-            printf("| ");
-        }
-
         terminal_name(l->lt->t, temp);
-        printf("%s (%d, %d)\n", temp, l->lt->line_num, l->lt->char_num);
+
+		char value[20];
+		if (l->lt->t == NUM) {
+			sprintf(value, "%d", l->lt->nv.int_val);
+		}
+		else if (l->lt->t == RNUM) {
+			sprintf(value, "%f", l->lt->nv.float_val);
+		}
+		else strcpy(value, "---");
+
+		printf("%-20s| %-10d| %-15s| %-10s| %-25s| %-15s| %-15s\n",
+			l->lt->lexeme, l->lt->line_num, temp, value, parent_symbol, "Leaf", temp);
     }
     else
     {
         pt_node *n = get_data(ptn);
         nonterminal_name(n->nt, temp);
-        for (int j = 0; j < level; j++)
+        
+		// first child
+        print_parse_subtree(get_child(ptn, 0), level + 1, temp);
+
+		// self
+		printf("%-20s| %-10s| %-15s| %-10s| %-25s| %-15s| %-15s\n",
+			"---", "---", "---", "---", parent_symbol, "Non Leaf", temp);
+
+		// remaining children
+        for (int i = 1; i < num_children; i++)
         {
-            printf("| ");
-        }
-        printf("%s\n", temp);
-        for (int i = 0; i < num_children; i++)
-        {
-            print_parse_subtree(get_child(ptn, i), level + 1);
+            print_parse_subtree(get_child(ptn, i), level + 1, temp);
         }
     }
     free(temp);
+
 }
 
 void print_parse_tree(tree *pt)
 {
     tree_node *root = get_root(pt);
-    print_parse_subtree(root, 0);
+	printf("%-20s| %-10s| %-15s| %-10s| %-25s| %-15s| %-15s\n",
+		"Current lexeme", "Line no", "Token Name", "Value", "Parent node symbol", "Is Leaf node?", "Node symbol");
+	printf("%-20s| %-10s| %-15s| %-10s| %-25s| %-15s| %-15s\n",
+		"========", "========", "========", "========", "========", "========", "========");
+
+    print_parse_subtree(root, 0, "ROOT");
 }
 
-void print_ast_subtree(tree_node *tn, int level)
+void print_ast_subtree(tree_node *tn, int level, char *parent_symbol)
 {
     char *temp = calloc(50, sizeof(char));
     void *data = get_data(tn);
     if (data == NULL)
     {
-        for (int i = 0; i < level; i++)
-        {
-            printf("| ");
-        }
-        printf("skipped\n");
+		/*
+         *for (int i = 0; i < level; i++)
+         *{
+         *    printf("| ");
+         *}
+         *printf("skipped\n");
+		 */
+		printf("%-20s| %-10s| %-15s| %-10s| %-25s| %-15s| %-15s\n",
+			"---", "---", "---", "---", parent_symbol, "Leaf", "---");
         free(temp);
         return;
     }
     if (((ast_node *)data)->is_leaf == false)
     {
         ast_node *n = (ast_node *)data;
-        for (int i = 0; i < level; i++)
-        {
-            printf("| ");
-        }
+		/*
+         *for (int i = 0; i < level; i++)
+         *{
+         *    printf("| ");
+         *}
+		 */
         if (n->label.is_terminal)
         {
             terminal_name(n->label.gms.t, temp);
-            printf("%s", temp);
+            /*printf("%s", temp);*/
         }
         else
         {
             nonterminal_name(n->label.gms.nt, temp);
-            printf("%s", temp);
+            /*printf("%s", temp);*/
         }
+
+		printf("%-20s| %-10s| %-15s| %-10s| %-25s| %-15s| %-15s\n",
+			"---", "---", "---", "---", parent_symbol, "Non Leaf", temp);
+
         if (n->ll != NULL)
         {
-            printf(" [%d LL ele's]", n->ll->num_nodes);
+            /*printf(" [%d LL ele's]", n->ll->num_nodes);*/
             for (int j = 0; j < n->ll->num_nodes; j++)
             {
-                printf("\nLL");
-                print_ast_subtree(ll_get(n->ll, j), level);
+                /*printf("\nLL");*/
+                print_ast_subtree(ll_get(n->ll, j), level, temp);
             }
         }
-        printf("\n");
     }
     else
     {
         ast_leaf *l = (ast_leaf *)data;
-        for (int i = 0; i < level; i++)
-        {
-            printf("| ");
-        }
-        printf("(L)");
+		/*
+         *for (int i = 0; i < level; i++)
+         *{
+         *    printf("| ");
+         *}
+         *printf("(L)");
+		 */
+
+		char value[20];
+		if (l->ltk->t == NUM) {
+			sprintf(value, "%d", l->ltk->nv.int_val);
+		}
+		else if (l->ltk->t == RNUM) {
+			sprintf(value, "%f", l->ltk->nv.float_val);
+		}
+		else strcpy(value, "---");
+
         if (l->label.is_terminal)
         {
             terminal_name(l->label.gms.t, temp);
-            printf("%s", temp);
+            /*printf("%s", temp);*/
         }
         else
         {
             nonterminal_name(l->label.gms.nt, temp);
-            printf("%s", temp);
+            /*printf("%s", temp);*/
         }
-        printf("\n");
+		printf("%-20s| %-10d| %-15s| %-10s| %-25s| %-15s| %-15s\n",
+			l->ltk->lexeme, l->ltk->line_num, temp, value, parent_symbol, "Leaf", temp);
     }
 
     int num_children = get_num_children(tn);
     for (int i = 0; i < num_children; i++)
     {
         tree_node *child = get_child(tn, i);
-        print_ast_subtree(child, level + 1);
+        print_ast_subtree(child, level + 1, temp);
     }
     free(temp);
 }
@@ -216,7 +286,13 @@ void print_ast_subtree(tree_node *tn, int level)
 void print_ast_tree(tree *ast)
 {
     tree_node *root = get_root(ast);
-    print_ast_subtree(root, 0);
+
+	printf("%-20s| %-10s| %-15s| %-10s| %-25s| %-15s| %-15s\n",
+		"Current lexeme", "Line no", "Token Name", "Value", "Parent node symbol", "Is Leaf node?", "Node symbol");
+	printf("%-20s| %-10s| %-15s| %-10s| %-25s| %-15s| %-15s\n",
+		"========", "========", "========", "========", "========", "========", "========");
+
+    print_ast_subtree(root, 0, "ROOT");
 }
 
 void print_parse_stack(stack *s)

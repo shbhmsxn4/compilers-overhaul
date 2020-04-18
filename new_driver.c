@@ -101,10 +101,38 @@ int main (int argc, char *argv[]) {
 			case 2:
 				printf("Option selected: 2 (Parser)\n\n");
 
+				thm = create_terminal_hash_map(15);
+				nthm = create_nonterminal_hash_map(15);
+				khm = create_keyword_hash_map(15);
+
+				l = create_lexer(test_file, dfa_specs_file, 512, 32, 30, khm);
+				gm = parse_grammar(grammar_file, thm, nthm);
+
+				fi = get_first(gm);
+				fo = get_follow(gm, fi);
+				pt = generate_parse_table(gm, fi, fo);
+				ptree = parse(l, gm, pt);
+				print_parse_tree(ptree);
+
 				break;
 
 			case 3:
 				printf("Option selected: 3 (AST)\n\n");
+
+				thm = create_terminal_hash_map(15);
+				nthm = create_nonterminal_hash_map(15);
+				khm = create_keyword_hash_map(15);
+
+				l = create_lexer(test_file, dfa_specs_file, 512, 32, 30, khm);
+				gm = parse_grammar(grammar_file, thm, nthm);
+
+				fi = get_first(gm);
+				fo = get_follow(gm, fi);
+				pt = generate_parse_table(gm, fi, fo);
+				ptree = parse(l, gm, pt);
+				ast_tree = generate_ast(ptree);
+
+				print_ast_tree(ast_tree);
 
 				break;
 
