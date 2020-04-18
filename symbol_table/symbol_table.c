@@ -408,14 +408,20 @@ bool is_same_type (common_id_entry *a, common_id_entry *b) {
 	}
 }
 
-void arr_assign_offset (arr_id_entry *entry, func_entry *func) {
+void arr_assign_offset (arr_id_entry *entry, func_entry *func, bool is_param) {
 	int func_width = func->width;
 	entry->offset = func_width;
-	if (entry->is_static) {
-		func->width = func_width + ((entry->range_end - entry->range_start + 1) * entry->width);
+	if (is_param) {
+		func->width = func_width + (2 * get_width_from_type(integer)) + 1;
 	}
 	else {
-		func->width = func_width + ASM_ADDR_SIZE;
+		if (entry->is_static) {
+			func->width = func_width + ((entry->range_end - entry->range_start + 1) * entry->width) + 1;
+		}
+		else {
+			/*func->width = func_width + ASM_ADDR_SIZE;*/
+			func->width = func_width + 1;
+		}
 	}
 	/*printf("var width off : %s %d %d\n", entry->lexeme, entry->width, entry->offset);*/
 }
@@ -446,9 +452,23 @@ void print_var_entry (var_id_entry *entry, scope_node *curr_scope, int level) {
 
 }
 
-void print_arr_entry (arr_id_entry *entry, scope_node *curr_scope, int level) {
+void print_arr_entry (arr_id_entry *entry, scope_node *curr_scope, int level, bool is_param) {
 	char scope_lines[25];
 	sprintf(scope_lines, "%d-%d", curr_scope->start_line, curr_scope->end_line);
+
+	int width;
+	if (is_param) {
+		width = (2 * get_width_from_type(integer)) + 1;
+	}
+	else {
+		if (entry->is_static) {
+			width = ((entry->range_end - entry->range_start + 1) * entry->width) + 1;
+		}
+		else {
+			width = 1;
+		}
+	}
+
 	char static_or_dynamic[10];
 	sprintf(static_or_dynamic, (entry->is_static) ? "static" : "dynamic");
 
@@ -457,12 +477,6 @@ void print_arr_entry (arr_id_entry *entry, scope_node *curr_scope, int level) {
 	if (entry->range_start == -1) {
 		char *rlex = entry->rstart_lexeme;
 		if (rlex != NULL) {
-			/*
-			 *if (rentry->is_array)
-			 *    sprintf(rstart, "%s", rentry->entry.arr_entry->lexeme);
-			 *else
-			 *    sprintf(rstart, "%s", rentry->entry.var_entry->lexeme);
-			 */
 			sprintf(rstart, "%s", rlex);
 		}
 		else strcpy(rstart, "-");
@@ -474,12 +488,6 @@ void print_arr_entry (arr_id_entry *entry, scope_node *curr_scope, int level) {
 	if (entry->range_end == -1) {
 		char *rlex = entry->rend_lexeme;
 		if (rlex != NULL) {
-			/*
-			 *if (rentry->is_array)
-			 *    sprintf(rend, "%s", rentry->entry.arr_entry->lexeme);
-			 *else
-			 *    sprintf(rend, "%s", rentry->entry.var_entry->lexeme);
-			 */
 			sprintf(rend, "%s", rlex);
 		}
 		else strcpy(rend, "-");
@@ -497,7 +505,7 @@ void print_arr_entry (arr_id_entry *entry, scope_node *curr_scope, int level) {
 	}
 	else {
 		printf("%-10s| %-10s| %-15s| %-10d| %-10s| %-15s| %-15s| %-10s| %-10d| %-10d\n\n",
-			entry->lexeme, curr_scope->func->name, scope_lines, entry->width+1, "yes", static_or_dynamic,
+			entry->lexeme, curr_scope->func->name, scope_lines, width, "yes", static_or_dynamic,
 			range, type_to_str(entry->type), entry->offset, level);
 
 	}
@@ -514,7 +522,7 @@ void print_scope (scope_node *curr_scope, int level) {
 
 	hm_node *arr_list = get_all_hm_nodes(curr_scope->arr_st);
 	while (arr_list != NULL) {
-		print_arr_entry(arr_list->data, curr_scope, level);
+		print_arr_entry(arr_list->data, curr_scope, level, false);
 		arr_list = arr_list->next;
 	}
 
@@ -530,7 +538,7 @@ void print_param_list (linked_list *plist, scope_node *curr_scope) {
 	while (phead) {
 		param_node *pnode = (param_node *) phead->data;
 		if (pnode->is_array) {
-			print_arr_entry(pnode->param.arr_entry, curr_scope, 0);
+			print_arr_entry(pnode->param.arr_entry, curr_scope, 0, true);
 		}
 		else if (!array_only_flag) {
 			print_var_entry(pnode->param.var_entry, curr_scope, 0);
@@ -547,15 +555,15 @@ void print_symbol_table (hash_map *st) {
 		printf("%-10s| %-15s| %-10s| %-15s| %-15s| %-10s\n",
 			"Scope", "scope lines", "Var name", "static/dynamic", "range", "type");
 		printf("%-10s| %-15s| %-10s| %-15s| %-15s| %-10s\n",
-			"--------", "--------", "--------", "--------", "--------", "--------");
+			"========", "========", "========", "========", "========", "========");
 	}
 	else {
 		printf("%-10s| %-10s| %-15s| %-10s| %-10s| %-15s| %-15s| %-10s| %-10s| %-10s\n",
 			"Var name", "Scope", "scope lines", "width", "is array", "static/dynamic", "range",
 			"type", "offset", "nesting level");
 		printf("%-10s| %-10s| %-15s| %-10s| %-10s| %-15s| %-15s| %-10s| %-10s| %-10s\n",
-			"--------", "--------", "--------", "--------", "--------", "--------", "--------",
-			"--------", "--------", "--------");
+			"========", "========", "========", "========", "========", "========", "========",
+			"========", "========", "========");
 	}
 
 
@@ -579,7 +587,7 @@ void print_symbol_table (hash_map *st) {
 void print_ar_size (hash_map *st) {
 	printf("\n********* ACTIVATION RECORD SIZE *********\n\n");
 	printf("%-15s| %-10s\n", "Module", "Size");
-	printf("%-15s| %-10s\n", "--------", "--------");
+	printf("%-15s| %-10s\n", "========", "========");
 
 	hm_node *module_list = get_all_hm_nodes(st);
 	while (module_list != NULL) {

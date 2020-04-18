@@ -1,6 +1,7 @@
 #include "../symbol_table/symbol_table.h"
 #include "../utils/terminal_name.h"
 
+bool is_while_expr = false;
 
 // FIRST AST PASS
 void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
@@ -123,7 +124,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 						range_indices, NULL,
 						-1, -1);
 
-				arr_assign_offset(fparam->param.arr_entry, f_st_entry);
+				arr_assign_offset(fparam->param.arr_entry, f_st_entry, true);
 			}
 			else {
 				fparam->is_array = false;
@@ -507,7 +508,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 							range_indices, range_lexemes,
 							-1, -1);
 
-					arr_assign_offset(entry, curr_scope->func);
+					arr_assign_offset(entry, curr_scope->func, false);
 
 					add_to_hash_map(curr_scope->arr_st, id_var_name, entry);
 				}
@@ -662,7 +663,9 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		tree_node *aobexpr_node = get_child(astn, 0);
 		tree_node *stmts_node = get_child(astn, 2);
 
+		is_while_expr = true;
 		first_pass(main_st, aobexpr_node, curr_scope);
+		is_while_expr = false;
 
 				// using start line num to generate key for hash map
 		int start_line_num = start_data->ltk->line_num;
@@ -1282,7 +1285,9 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		tree_node *aobexpr_node = get_child(astn, 0);
 		tree_node *stmts_node = get_child(astn, 2);
 
+		is_while_expr = true;
 		second_pass(main_st, aobexpr_node, curr_scope);
+		is_while_expr = false;
 
 		/*
 		 *ast_node *aobexpr_data = (ast_node *) get_data(aobexpr_node);
