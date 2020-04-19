@@ -391,7 +391,14 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 if (ldata->is_leaf == false)
                 {
                     // it's var_id_num node
-                    // TODO
+                    data2 = (ast_node *)get_data(n2);
+                    generate_code(n2, st, curr_scope, lg);
+                    stitch_code_append(n, n2);
+                    append_code(data->c, "push edx\n");
+                    append_code(data->c, "push fmtd\n");
+                    append_code(data->c, "call printf\n");
+                    append_code(data->c, "add esp, 8\n");
+                    // TODO floats and bools ka printing
                 }
                 else
                 {
@@ -458,53 +465,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         assert(false, "if output stmt child has leaf, then it's NUM/RNUM/TRUE/FALSE");
                     }
                 }
-                if (ldata->ltk->t == NUM)
-                {
-                    append_code(data->c, "push inpt\n");
-                    append_code(data->c, "push fmtd\n");
-                    append_code(data->c, "call scanf\n");
-                    append_code(data->c, "add esp, 8\n");
-                    append_code(data->c, "mov edx, [inpt]\n");
-                    if (is_param)
-                    {
-                        append_code(data->c, "mov [ebp + ");
-                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                        append_code(data->c, "], edx\n");
-                    }
-                    else
-                    {
-                        append_code(data->c, "mov [esp + ");
-                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                        append_code(data->c, "], edx\n");
-                    }
-                }
-                else if (ldata->ltk->t == RNUM)
-                {
-                    append_code(data->c, "push inpt\n");
-                    append_code(data->c, "push fmtf\n");
-                    append_code(data->c, "call scanf\n");
-                    append_code(data->c, "add esp, 8\n");
-                    append_code(data->c, "mov edx, inpt\n");
-                    if (is_param)
-                    {
-                        append_code(data->c, "mov [ebp + ");
-                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                        append_code(data->c, "], edx\n");
-                    }
-                    else
-                    {
-                        append_code(data->c, "mov [esp + ");
-                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                        append_code(data->c, "], edx\n");
-                    }
-                }
-                else if (ldata->ltk->t == BOOLEAN)
-                {
-                }
-                else
-                {
-                    assert(false, "input stmt accepts only NUM RNUM or BOOLEAN as argument");
-                }
+
                 break;
 
             case assignmentStmt:
@@ -1029,3 +990,56 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
         }
     }
 }
+
+/*
+CODE DELETED FROM END OF case output_stmt
+
+if (ldata->ltk->t == NUM)
+                {
+                    append_code(data->c, "push inpt\n");
+                    append_code(data->c, "push fmtd\n");
+                    append_code(data->c, "call scanf\n");
+                    append_code(data->c, "add esp, 8\n");
+                    append_code(data->c, "mov edx, [inpt]\n");
+                    if (is_param)
+                    {
+                        append_code(data->c, "mov [ebp + ");
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                        append_code(data->c, "], edx\n");
+                    }
+                    else
+                    {
+                        append_code(data->c, "mov [esp + ");
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                        append_code(data->c, "], edx\n");
+                    }
+                }
+                else if (ldata->ltk->t == RNUM)
+                {
+                    append_code(data->c, "push inpt\n");
+                    append_code(data->c, "push fmtf\n");
+                    append_code(data->c, "call scanf\n");
+                    append_code(data->c, "add esp, 8\n");
+                    append_code(data->c, "mov edx, inpt\n");
+                    if (is_param)
+                    {
+                        append_code(data->c, "mov [ebp + ");
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                        append_code(data->c, "], edx\n");
+                    }
+                    else
+                    {
+                        append_code(data->c, "mov [esp + ");
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                        append_code(data->c, "], edx\n");
+                    }
+                }
+                else if (ldata->ltk->t == BOOLEAN)
+                {
+                }
+                else
+                {
+                    assert(false, "input stmt accepts only NUM RNUM or BOOLEAN as argument");
+                }
+
+*/
