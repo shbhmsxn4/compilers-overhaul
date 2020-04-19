@@ -343,7 +343,8 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 assert(entry->is_array == false, "cant take array as argument for input stmt");
                 offset = entry->entry.var_entry->offset;
                 is_param = entry->is_param;
-                if (ldata->ltk->t == NUM)
+                it_temp = entry->entry.var_entry->type;
+                if (it_temp == integer)
                 {
                     append_code(data->c, "push inpt\n");
                     append_code(data->c, "push fmtd\n");
@@ -363,7 +364,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         append_code(data->c, "], edx\n");
                     }
                 }
-                else if (ldata->ltk->t == RNUM)
+                else if (it_temp == real)
                 {
                     append_code(data->c, "push inpt\n");
                     append_code(data->c, "push fmtf\n");
@@ -383,7 +384,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         append_code(data->c, "], edx\n");
                     }
                 }
-                else if (ldata->ltk->t == BOOLEAN)
+                else if (it_temp == boolean)
                 {
                     // TODO
                 }
