@@ -35,13 +35,11 @@ bool array_only_flag = false;
 
 int main (int argc, char *argv[]) {
 
-	/*
-	 *if (argc != 3 || (argc == 3 && strcmp(argv[0], "./stage1exe") != 0)) {
-	 *    printf("Incorrect execution format. Expected:-\n");
-	 *    printf("./stage1exe testcase.txt parsetreeOutFile.txt\n");
-	 *    return 0;
-	 *}
-	 */
+	if (argc != 3 || (argc == 3 && strcmp(argv[0], "./compiler") != 0)) {
+		printf("Incorrect execution format. Expected:-\n");
+		printf("./compiler testcase.txt code.asm\n");
+		return 0;
+	}
 
 	printf("\n**************** ERPLAG COMPILER - PHASE 2 ****************\n");
 	/*
@@ -63,10 +61,12 @@ int main (int argc, char *argv[]) {
 
 	/*char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/revisedtests/t5.txt";*/
 	/*char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/revisedtests/Sample_Symbol_table.txt";*/
-	char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/test.txt";
-	char dfa_specs_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/lang_specs/dfa_specs";
-	char grammar_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/lang_specs/grammar";
+	/*char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/test.txt";*/
+	char test_file[150];
+	char dfa_specs_file[150] = "./lang_specs/dfa_specs";
+	char grammar_file[150] = "./lang_specs/grammar";
 
+	strcpy(test_file, argv[1]);
 	while (1) {
 		printf("\n");
 		printf("Options:-\n");

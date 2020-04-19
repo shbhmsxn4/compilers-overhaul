@@ -119,6 +119,13 @@ tree *parse(lexer *l, grammar *gm, parse_table *pt)
             else
             {
                 // syntactical error has occurred
+				while (next_stack_unit->is_terminal) {
+					printf("Syntax error at line %d - lexeme %s\n", next_lexer_token->line_num, next_lexer_token->lexeme);
+					temp = (gm_unit *)pop(parser_stack);
+					free(temp);
+					temp = NULL;
+					next_lexer_token = get_next_token(l);
+				}
             }
         }
         else
@@ -157,6 +164,7 @@ tree *parse(lexer *l, grammar *gm, parse_table *pt)
             else
             {
                 // syntactical error has occurred
+				
             }
         }
 

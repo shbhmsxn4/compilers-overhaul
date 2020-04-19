@@ -23,7 +23,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		first_pass(main_st, get_child(astn, 1), curr_scope);
 
 		// driver module
-		func_entry *st_entry = (func_entry *) fetch_from_hash_map(main_st, "program");
+		func_entry *st_entry = (func_entry *) fetch_from_hash_map(main_st, "driver");
 		assert(st_entry != NULL, "default entry for driver module not found");
 		first_pass(main_st, get_child(astn, 2), st_entry->local_scope);
 
@@ -116,13 +116,16 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 				
 				tree_node *range_arrays = get_child(param_type, 0);
 				int *range_indices = get_static_range(range_arrays);
-				// TODO: module params dont have dynamic ranges?
+				
+				/*printf("here %s\n", param_id->ltk->lexeme);*/
+				char **range_lexemes = get_dynamic_range(range_arrays, curr_scope);
+				/*char **range_lexemes = NULL;*/
 				/*common_id_entry **range_entries = get_dynamic_range(range_arrays, NULL);*/
 
 				fparam->param.arr_entry = create_arr_entry(
 						param_id->ltk->lexeme,
 						get_type_from_node(get_child(param_type, 1)),
-						range_indices, NULL,
+						range_indices, range_lexemes,
 						-1, -1);
 
 				arr_assign_offset(fparam->param.arr_entry, f_st_entry, true);
@@ -634,11 +637,28 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func, start_line_num, end_line_num);
 
 		// insert loop var in scope
-		var_id_entry *entry = create_var_entry(id_data->ltk->lexeme, integer, -1, -1);
-		add_to_hash_map(new_scope->var_id_st, id_data->ltk->lexeme, entry);
-		new_scope->loop_var_entry = entry;
-
-		var_assign_offset(entry, curr_scope->func);
+/*
+ *        var_id_entry *entry = create_var_entry(id_data->ltk->lexeme, integer, -1, -1);
+ *        add_to_hash_map(new_scope->var_id_st, id_data->ltk->lexeme, entry);
+ *        new_scope->loop_var_entry = entry;
+ *
+ *        var_assign_offset(entry, curr_scope->func);
+ */
+		common_id_entry *centry = type_check_var(id_data, NULL, curr_scope, for_use);
+		if (centry != NULL) {
+			char err_msg[100];
+			if (centry->is_array) {
+				sprintf(err_msg, "for loop variable '%s' should be integer, found array", id_data->ltk->lexeme);
+				display_err("Semantic", id_data->ltk->line_num, err_msg);
+			}
+			else if (centry->entry.var_entry->type != integer) {
+				sprintf(err_msg, "for loop variable '%s' should be integer, found %s", id_data->ltk->lexeme, type_to_str(centry->entry.var_entry->type));
+				display_err("Semantic", id_data->ltk->line_num, err_msg);
+			}
+			else {
+				new_scope->loop_var_entry = centry->entry.var_entry;
+			}
+		}
 
 		// using start line num to generate key for hash map
 		char *str_line_num = (char *) malloc(25 * sizeof(char));
@@ -728,7 +748,7 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		second_pass(main_st, get_child(astn, 1), curr_scope);
 
 		// driver module
-		func_entry *st_entry = (func_entry *) fetch_from_hash_map(main_st, "program");
+		func_entry *st_entry = (func_entry *) fetch_from_hash_map(main_st, "driver");
 		assert(st_entry != NULL, "default entry for driver module not found");
 		second_pass(main_st, get_child(astn, 2), st_entry->local_scope);
 

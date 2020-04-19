@@ -74,7 +74,9 @@ char** get_dynamic_range (tree_node *node, scope_node *curr_scope) {
 
 	// if static then range value is NULL 
 	if (index1->label.gms.t == ID) {
-		common_id_entry *var_entry = type_check_var(index1, NULL, curr_scope, for_use);
+		common_id_entry *var_entry = NULL;
+		if (curr_scope != NULL)
+			var_entry = type_check_var(index1, NULL, curr_scope, for_use);
 		indices[0] = index1->ltk->lexeme;
 		if (var_entry != NULL) {
 			if (var_entry->is_array) {
@@ -94,7 +96,9 @@ char** get_dynamic_range (tree_node *node, scope_node *curr_scope) {
 	}
 
 	if (index2->label.gms.t == ID) {
-		common_id_entry *var_entry = type_check_var(index2, NULL, curr_scope, for_use);
+		common_id_entry *var_entry = NULL;
+		if (curr_scope != NULL)
+			var_entry = type_check_var(index2, NULL, curr_scope, for_use);
 		indices[1] = index2->ltk->lexeme;
 		if (var_entry != NULL) {
 			if (var_entry->is_array) {
@@ -176,6 +180,7 @@ func_entry *create_func_entry (char *name, bool is_declared, bool is_defined, bo
 }
 
 common_id_entry *find_id (char *lexeme, scope_node *curr_scope, bool is_recursive) {
+	if (curr_scope == NULL) return NULL;
 	common_id_entry *centry = NULL;
 
 	var_id_entry *ventry = (var_id_entry *) fetch_from_hash_map(curr_scope->var_id_st, lexeme);
@@ -470,7 +475,7 @@ hash_map *create_symbol_table () {
 	hash_map *main_st = create_hash_map(DEFAULT_ST_SIZE);
 
 	// default entry for driver module
-	func_entry *st_entry = create_func_entry("program", true, false, false, -1, 0);
+	func_entry *st_entry = create_func_entry("driver", true, false, false, -1, 0);
 	add_to_hash_map(main_st, st_entry->name, st_entry);
 
 	return main_st;
