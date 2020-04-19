@@ -298,12 +298,12 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 generate_code(n2, st, ((func_entry *)fetch_from_hash_map(st, "program"))->local_scope, lg);
                 stitch_code_append(n, n2);
                 append_code(data->c, "ret\n");
-                append_code(data->c, "\n\nsection.data\n");
+                append_code(data->c, "\n\nsection .data\n");
                 append_code(data->c, "truestr db \"true\", 0\n");
                 append_code(data->c, "falsestr db \"false\", 0\n");
                 append_code(data->c, "fmtd db \"%d\", 0\n");
                 append_code(data->c, "fmtf db \"%f\", 0\n");
-                append_code(data->c, "\n\nsection.bss\n");
+                append_code(data->c, "\n\nsection .bss\n");
                 append_code(data->c, "inpt resd 1\n");
 
                 break;
