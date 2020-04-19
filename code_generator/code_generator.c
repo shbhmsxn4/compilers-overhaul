@@ -196,7 +196,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 }
                 else
                 {
-                    append_code(ldata->c, "mov dx, [esp + ");
+                    append_code(ldata->c, "mov dx, [esi + ");
                     append_code(ldata->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                     append_code(ldata->c, "]\n");
                     append_code(ldata->c, "and edx, 00001111h\n");
@@ -212,7 +212,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 }
                 else
                 {
-                    append_code(ldata->c, "mov edx, [esp + ");
+                    append_code(ldata->c, "mov edx, [esi + ");
                     append_code(ldata->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                     append_code(ldata->c, "]\n");
                 }
@@ -228,7 +228,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 }
                 else
                 {
-                    append_code(ldata->c, "mov dl, [esp + ");
+                    append_code(ldata->c, "mov dl, [esi + ");
                     append_code(ldata->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                     append_code(ldata->c, "]\n");
                     append_code(ldata->c, "and edx, 00000011h\n");
@@ -285,6 +285,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 append_code(data->c, "sub esp, ");
                 append_code(data->c, itoa(temp_width, (char *)calloc(MAX_WIDTH_DIGS, sizeof(char)), 10));
                 append_code(data->c, "\n");
+                append_code(data->c, "mov esi, esp\n");
                 n2 = get_child(n, 2);
                 data2 = (ast_node *)get_data(n2);
                 generate_code(n2, st, ((func_entry *)fetch_from_hash_map(st, "program"))->local_scope, lg);
@@ -349,7 +350,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     }
                     else
                     {
-                        append_code(data->c, "mov [esp + ");
+                        append_code(data->c, "mov [esi + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
@@ -369,7 +370,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     }
                     else
                     {
-                        append_code(data->c, "mov [esp + ");
+                        append_code(data->c, "mov [esi + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
@@ -427,7 +428,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         }
                         else
                         {
-                            append_code(data->c, "mov edx, [esp + ");
+                            append_code(data->c, "mov edx, [esi + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "]\n");
                         }
@@ -450,7 +451,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         }
                         else
                         {
-                            append_code(data->c, "mov edx, [esp + ");
+                            append_code(data->c, "mov edx, [esi + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "]\n");
                         }
@@ -496,7 +497,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         }
                         else
                         {
-                            append_code(data->c, "mov [esp + ");
+                            append_code(data->c, "mov [esi + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "], dx\n");
                         }
@@ -511,7 +512,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         }
                         else
                         {
-                            append_code(data->c, "mov [esp + ");
+                            append_code(data->c, "mov [esi + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "], edx");
                         }
@@ -526,7 +527,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         }
                         else
                         {
-                            append_code(data->c, "mov [esp + ");
+                            append_code(data->c, "mov [esi + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "], dl");
                         }
@@ -568,7 +569,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     }
                     else
                     {
-                        append_code(data->c, "mov dx, [esp + ");
+                        append_code(data->c, "mov dx, [esi + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "]\n");
                         append_code(data->c, "push eax\n");
