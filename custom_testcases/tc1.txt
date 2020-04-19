@@ -1,0 +1,11 @@
+<<<driver program>>>
+
+start
+
+declare a, b:integer;
+a:=10;
+b:=20;
+a:=a+b;
+
+
+end
