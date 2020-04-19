@@ -381,7 +381,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 data2 = (ast_node *)get_data(n2);
                 for (int i = 0; i < ll_num_nodes(data2->ll); i++)
                 {
-                    generate_code(ll_get(data2->ll, i), st, curr_scope, lg);
+                    generate_code(ll_get(data2->ll, i), st, NULL, lg);
                     stitch_code_append(n, ll_get(data2->ll, i));
                     append_code(data->c, "\n");
                 }
@@ -389,14 +389,14 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 data2 = (ast_node *)get_data(n2);
                 for (int i = 0; i < ll_num_nodes(data2->ll); i++)
                 {
-                    generate_code(ll_get(data2->ll, i), st, curr_scope, lg);
+                    generate_code(ll_get(data2->ll, i), st, NULL, lg);
                     stitch_code_append(n, ll_get(data2->ll, i));
                     append_code(data->c, "\n");
                 }
                 append_code(data->c, "main:\n");
                 n2 = get_child(n, 2);
                 data2 = (ast_node *)get_data(n2);
-                generate_code(n2, st, curr_scope, lg);
+                generate_code(n2, st, ((func_entry *)fetch_from_hash_map(st, "program"))->local_scope, lg);
                 stitch_code_append(n, n2);
                 append_code(data->c, "ret\n");
                 append_code(data->c, "section.data\n");
@@ -407,6 +407,12 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 append_code(data->c, "section.bss\n");
                 append_code(data->c, "inpt resd 1\n");
 
+                break;
+
+            case moduleDef:
+                n2 = get_child(n, 0);
+                generate_code(n2, st, curr_scope, lg);
+                stitch_code_append(n, n2);
                 break;
 
             case statements:
