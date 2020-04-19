@@ -933,7 +933,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 {
                     data->c = create_empty_code();
 
-                    n2 = get_child(n, 1);
+                    n2 = get_child(n, 2);
                     data2 = (ast_node *)get_data(n2);
                     generate_code(n2, st, curr_scope, lg);
                     stitch_code_append(n, n2);
@@ -963,7 +963,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 {
                     data->c = create_empty_code();
 
-                    n2 = get_child(n, 1);
+                    n2 = get_child(n, 2);
                     data2 = (ast_node *)get_data(n2);
                     generate_code(n2, st, curr_scope, lg);
                     stitch_code_append(n, n2);
