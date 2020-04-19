@@ -564,7 +564,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         append_code(data->c, "mov ax, dx\n");
                         append_code(data->c, "cwde\n");
                         append_code(data->c, "mov edx, eax\n");
-                        append_code(data->c, "pop eax");
+                        append_code(data->c, "pop eax\n");
                     }
                     else
                     {
@@ -575,7 +575,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         append_code(data->c, "mov ax, dx\n");
                         append_code(data->c, "cwde\n");
                         append_code(data->c, "mov edx, eax\n");
-                        append_code(data->c, "pop eax");
+                        append_code(data->c, "pop eax\n");
                     }
                 }
                 else if (it_temp == real)
