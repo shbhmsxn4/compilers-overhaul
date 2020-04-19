@@ -283,7 +283,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 f_entry = fetch_from_hash_map(st, "program");
                 temp_scope = f_entry->local_scope;
                 hm_node *temp_hm_node = get_all_hm_nodes(temp_scope->var_id_st);
-                int temp_width;
+                int temp_width = 0;
                 while (temp_hm_node != NULL)
                 {
                     var_id_entry *temp_var_id_entry = (var_id_entry *)temp_hm_node->data;
