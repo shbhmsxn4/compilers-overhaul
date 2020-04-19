@@ -336,11 +336,11 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 it_temp = entry->entry.var_entry->type;
                 if (it_temp == integer)
                 {
-                    append_code(data->c, "push inpt\n");
-                    append_code(data->c, "push fmtd\n");
+                    append_code(data->c, "push dword inpt\n");
+                    append_code(data->c, "push dword fmtd\n");
                     append_code(data->c, "call scanf\n");
                     append_code(data->c, "add esp, 8\n");
-                    append_code(data->c, "mov edx, inpt\n");
+                    append_code(data->c, "mov edx, [inpt]\n");
                     if (is_param)
                     {
                         append_code(data->c, "mov [ebp + ");
@@ -360,7 +360,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     append_code(data->c, "push fmtf\n");
                     append_code(data->c, "call scanf\n");
                     append_code(data->c, "add esp, 8\n");
-                    append_code(data->c, "mov edx, inpt\n");
+                    append_code(data->c, "mov edx, [inpt]\n");
                     if (is_param)
                     {
                         append_code(data->c, "mov [ebp + ");
@@ -395,8 +395,8 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     generate_code(n2, st, curr_scope, lg);
                     stitch_code_append(n, n2);
                     append_code(data->c, "mov [inpt], edx\n");
-                    append_code(data->c, "push inpt\n");
-                    append_code(data->c, "push fmtd\n");
+                    append_code(data->c, "push dword inpt\n");
+                    append_code(data->c, "push dword fmtd\n");
                     append_code(data->c, "call printf\n");
                     append_code(data->c, "add esp, 8\n");
                     // TODO floats and bools ka printing
