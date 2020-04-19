@@ -21,8 +21,10 @@ void append_code(code *c, char *str);
 
 void prepend_code(code *c, char *str);
 
-void stitch_code_append(code *dst, code *src);
+void stitch_code_append(tree_node *dst, tree_node *src);
 
 void stitch_code_prepend(code *dst, code *src);
+
+void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen *lg);
 
 #endif

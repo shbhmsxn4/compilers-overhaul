@@ -54,6 +54,7 @@ void stitch_code_append(tree_node *dst, tree_node *src)
     ast_node *data;
 
     data = (ast_node *)get_data(dst);
+    // printf("dst: %d ", data->label.gms.nt);
     if (data->is_leaf)
     {
         ldata = (ast_leaf *)get_data(dst);
@@ -65,6 +66,7 @@ void stitch_code_append(tree_node *dst, tree_node *src)
     }
 
     data = (ast_node *)get_data(src);
+    // printf("src: %d\n", data->label.gms.nt);
     if (data->is_leaf)
     {
         ldata = (ast_leaf *)get_data(src);
@@ -72,8 +74,11 @@ void stitch_code_append(tree_node *dst, tree_node *src)
     }
     else
     {
+        // printf("hey\n");
         src_code = data->c;
     }
+
+    assert(src_code != NULL && dst_code != NULL, "stitching valid codes");
 
     for (int i = 0; i < src_code->num_str; i++)
     {
@@ -144,11 +149,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
     common_id_entry *entry = NULL;
     if (data->is_leaf)
     {
+        // printf("hey\n");
         data = NULL;
         ldata = (ast_leaf *)get_data(n);
-        switch (ldata->label.gms.t)
+        switch (ldata->ltk->t)
         {
         case NUM:
+
             ldata->c = create_empty_code();
             append_code(ldata->c, "mov edx, ");
             append_code(ldata->c, itoa(ldata->ltk->nv.int_val, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
@@ -168,129 +175,6 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
         case FALSE:
             ldata->c = create_empty_code();
             append_code(ldata->c, "mov edx, 0\n");
-            break;
-
-        case PLUS:
-            ldata->c = create_empty_code();
-
-            n2 = get_child(n, 1);
-            data2 = (ast_node *)get_data(n2);
-            generate_code(n2, st, curr_scope, lg);
-            stitch_code_append(n, n2);
-            if (data_in_edx(n2))
-            {
-                append_code(ldata->c, "push edx\n");
-            }
-            else
-            {
-                append_code(ldata->c, "push eax\n");
-            }
-
-            n2 = get_child(n, 0);
-            data2 = (ast_node *)get_data(n2);
-            generate_code(n2, st, curr_scope, lg);
-            stitch_code_append(n, n2);
-            if (data_in_edx(n2))
-            {
-                append_code(ldata->c, "mov eax, edx\n");
-            }
-            append_code(ldata->c, "pop edx\n");
-
-            append_code(ldata->c, "add eax, edx\n");
-            break;
-
-        case MINUS:
-            ldata->c = create_empty_code();
-
-            n2 = get_child(n, 1);
-            data2 = (ast_node *)get_data(n2);
-            generate_code(n2, st, curr_scope, lg);
-            stitch_code_append(n, n2);
-            if (data_in_edx(n2))
-            {
-                append_code(ldata->c, "push edx\n");
-            }
-            else
-            {
-                append_code(ldata->c, "push eax\n");
-            }
-
-            n2 = get_child(n, 0);
-            data2 = (ast_node *)get_data(n2);
-            generate_code(n2, st, curr_scope, lg);
-            stitch_code_append(n, n2);
-            if (data_in_edx(n2))
-            {
-                append_code(ldata->c, "mov eax, edx\n");
-            }
-            append_code(ldata->c, "pop edx\n");
-
-            append_code(ldata->c, "sub eax, edx\n");
-            break;
-
-        case MUL:
-            ldata->c = create_empty_code();
-
-            n2 = get_child(n, 1);
-            data2 = (ast_node *)get_data(n2);
-            generate_code(n2, st, curr_scope, lg);
-            stitch_code_append(n, n2);
-            if (data_in_edx(n2))
-            {
-                append_code(ldata->c, "push edx\n");
-            }
-            else
-            {
-                append_code(ldata->c, "push eax\n");
-            }
-
-            n2 = get_child(n, 0);
-            data2 = (ast_node *)get_data(n2);
-            generate_code(n2, st, curr_scope, lg);
-            stitch_code_append(n, n2);
-            if (data_in_edx(n2))
-            {
-                append_code(ldata->c, "mov eax, edx\n");
-            }
-            append_code(ldata->c, "pop edx\n");
-
-            append_code(ldata->c, "imul dx\n");
-            append_code(ldata->c, "cwde\n");
-            break;
-
-        case DIV:
-            ldata->c = create_empty_code();
-
-            n2 = get_child(n, 1);
-            data2 = (ast_node *)get_data(n2);
-            generate_code(n2, st, curr_scope, lg);
-            stitch_code_append(n, n2);
-            if (data_in_edx(n2))
-            {
-                append_code(ldata->c, "push edx\n");
-            }
-            else
-            {
-                append_code(ldata->c, "push eax\n");
-            }
-
-            n2 = get_child(n, 0);
-            data2 = (ast_node *)get_data(n2);
-            generate_code(n2, st, curr_scope, lg);
-            stitch_code_append(n, n2);
-            if (data_in_edx(n2))
-            {
-                append_code(ldata->c, "mov eax, edx\n");
-            }
-            append_code(ldata->c, "pop edx\n");
-
-            append_code(ldata->c, "push ebx\n");
-            append_code(ldata->c, "mov ebx, edx\n");
-            append_code(ldata->c, "mov edx, eax\n");
-            append_code(ldata->c, "shr edx, 16\n");
-            append_code(ldata->c, "idiv bx\n");
-            append_code(ldata->c, "cwde\n");
-            append_code(ldata->c, "pop ebx\n");
             break;
 
         case ID:
@@ -376,7 +260,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 append_code(data->c, "global main\n");
                 append_code(data->c, "extern scanf\n");
                 append_code(data->c, "extern printf\n");
-                append_code(data->c, "section .text\n");
+                append_code(data->c, "\n\nsection .text\n");
                 n2 = get_child(n, 1);
                 data2 = (ast_node *)get_data(n2);
                 for (int i = 0; i < ll_num_nodes(data2->ll); i++)
@@ -393,24 +277,25 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     stitch_code_append(n, ll_get(data2->ll, i));
                     append_code(data->c, "\n");
                 }
-                append_code(data->c, "main:\n");
+                append_code(data->c, "\n\nmain:\n");
                 n2 = get_child(n, 2);
                 data2 = (ast_node *)get_data(n2);
                 generate_code(n2, st, ((func_entry *)fetch_from_hash_map(st, "program"))->local_scope, lg);
                 stitch_code_append(n, n2);
                 append_code(data->c, "ret\n");
-                append_code(data->c, "section.data\n");
+                append_code(data->c, "\n\nsection.data\n");
                 append_code(data->c, "truestr db \"true\", 0\n");
                 append_code(data->c, "falsestr db \"false\", 0\n");
                 append_code(data->c, "fmtd db \"%d\", 0\n");
                 append_code(data->c, "fmtf db \"%f\", 0\n");
-                append_code(data->c, "section.bss\n");
+                append_code(data->c, "\n\nsection.bss\n");
                 append_code(data->c, "inpt resd 1\n");
 
                 break;
 
             case moduleDef:
-                n2 = get_child(n, 0);
+                data->c = create_empty_code();
+                n2 = get_child(n, 1);
                 generate_code(n2, st, curr_scope, lg);
                 stitch_code_append(n, n2);
                 break;
@@ -419,13 +304,14 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 data->c = create_empty_code();
                 for (int i = 0; i < ll_num_nodes(data->ll); i++)
                 {
+                    // printf("%d\n", i);
                     generate_code(ll_get(data->ll, i), st, curr_scope, lg);
                     stitch_code_append(n, ll_get(data->ll, i));
                 }
                 break;
 
             case declareStmt:
-                // ignore
+                data->c = create_empty_code();
                 break;
 
             case input_stmt:
@@ -447,13 +333,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     if (is_param)
                     {
                         append_code(data->c, "mov ss:[bp + ");
-                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char))));
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
                     else
                     {
                         append_code(data->c, "mov ss:[sp + ");
-                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char))));
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
                 }
@@ -467,13 +353,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     if (is_param)
                     {
                         append_code(data->c, "mov ss:[bp + ");
-                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char))));
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
                     else
                     {
                         append_code(data->c, "mov ss:[sp + ");
-                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char))));
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
                 }
@@ -518,13 +404,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         if (is_param)
                         {
                             append_code(data->c, "mov edx, ss:[bp + ");
-                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char))));
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "]\n");
                         }
                         else
                         {
                             append_code(data->c, "mov edx, ss:[sp + ");
-                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char))));
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "]\n");
                         }
                         append_code(data->c, "mov [inpt], edx\n");
@@ -541,13 +427,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         if (is_param)
                         {
                             append_code(data->c, "mov edx, ss:[bp + ");
-                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char))));
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "]\n");
                         }
                         else
                         {
                             append_code(data->c, "mov edx, ss:[sp + ");
-                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char))));
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "]\n");
                         }
                         append_code(data->c, "mov [inpt], edx\n");
@@ -571,13 +457,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     if (is_param)
                     {
                         append_code(data->c, "mov ss:[bp + ");
-                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char))));
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
                     else
                     {
                         append_code(data->c, "mov ss:[sp + ");
-                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char))));
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
                 }
@@ -591,13 +477,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     if (is_param)
                     {
                         append_code(data->c, "mov ss:[bp + ");
-                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char))));
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
                     else
                     {
                         append_code(data->c, "mov ss:[sp + ");
-                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char))));
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
                 }
@@ -634,13 +520,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         {
                             append_code(data->c, "mov ss:[bp + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                            append_code(data->c, "], dx");
+                            append_code(data->c, "], dx\n");
                         }
                         else
                         {
                             append_code(data->c, "mov ss:[sp + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                            append_code(data->c, "], dx");
+                            append_code(data->c, "], dx\n");
                         }
                     }
                     else if (it_temp == real)
@@ -681,7 +567,53 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 break;
 
             case var_id_num:
-                // TODO
+                data->c = create_empty_code();
+                n2 = get_child(n, 0);
+                ldata = (ast_leaf *)get_data(n2);
+                entry = find_id_for(ldata->ltk->lexeme, curr_scope, for_use, ldata->ltk->line_num);
+                offset = entry->entry.var_entry->offset;
+                is_param = entry->is_param;
+                if (entry->is_array)
+                {
+                    it_temp = array;
+                }
+                else
+                {
+                    it_temp = entry->entry.var_entry->type;
+                }
+                if (it_temp == integer)
+                {
+                    if (is_param)
+                    {
+                        append_code(data->c, "mov dx, ss:[bp + ");
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                        append_code(data->c, "]\n");
+                        append_code(data->c, "cwde\n");
+                    }
+                    else
+                    {
+                        append_code(data->c, "mov dx, ss:[sp + ");
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                        append_code(data->c, "]\n");
+                        append_code(data->c, "cwde\n");
+                    }
+                }
+                else if (it_temp == real)
+                {
+                    // TODO
+                }
+                else if (it_temp == boolean)
+                {
+                    // TODO
+                }
+                else if (it_temp == array)
+                {
+                    // TODO
+                }
+                else
+                {
+                    assert(false, "var_id_num has id_type in integer real boolean array");
+                }
                 break;
 
             case lvalueIDStmt:
@@ -947,6 +879,140 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
 
                 append_code(data->c, label_temp2);
                 append_code(data->c, ":\n");
+                break;
+
+            case op1:
+                n2 = get_child(n, 1);
+                ldata = (ast_leaf *)get_data(n2);
+                if (ldata->label.gms.t == PLUS)
+                {
+                    data->c = create_empty_code();
+
+                    n2 = get_child(n, 2);
+                    data2 = (ast_node *)get_data(n2);
+                    generate_code(n2, st, curr_scope, lg);
+                    stitch_code_append(n, n2);
+                    if (data_in_edx(n2))
+                    {
+                        append_code(data->c, "push edx\n");
+                    }
+                    else
+                    {
+                        append_code(data->c, "push eax\n");
+                    }
+
+                    n2 = get_child(n, 0);
+                    data2 = (ast_node *)get_data(n2);
+                    generate_code(n2, st, curr_scope, lg);
+                    stitch_code_append(n, n2);
+                    if (data_in_edx(n2))
+                    {
+                        append_code(data->c, "mov eax, edx\n");
+                    }
+                    append_code(data->c, "pop edx\n");
+
+                    append_code(data->c, "add eax, edx\n");
+                }
+                else if (ldata->label.gms.t == MINUS)
+                {
+
+                    data->c = create_empty_code();
+
+                    n2 = get_child(n, 2);
+                    data2 = (ast_node *)get_data(n2);
+                    generate_code(n2, st, curr_scope, lg);
+                    stitch_code_append(n, n2);
+                    if (data_in_edx(n2))
+                    {
+                        append_code(data->c, "push edx\n");
+                    }
+                    else
+                    {
+                        append_code(data->c, "push eax\n");
+                    }
+
+                    n2 = get_child(n, 0);
+                    data2 = (ast_node *)get_data(n2);
+                    generate_code(n2, st, curr_scope, lg);
+                    stitch_code_append(n, n2);
+                    if (data_in_edx(n2))
+                    {
+                        append_code(data->c, "mov eax, edx\n");
+                    }
+                    append_code(data->c, "pop edx\n");
+
+                    append_code(data->c, "sub eax, edx\n");
+                }
+                break;
+
+            case op2:
+                n2 = get_child(n, 1);
+                ldata = (ast_leaf *)get_data(n2);
+                if (ldata->label.gms.t == MUL)
+                {
+                    data->c = create_empty_code();
+
+                    n2 = get_child(n, 1);
+                    data2 = (ast_node *)get_data(n2);
+                    generate_code(n2, st, curr_scope, lg);
+                    stitch_code_append(n, n2);
+                    if (data_in_edx(n2))
+                    {
+                        append_code(data->c, "push edx\n");
+                    }
+                    else
+                    {
+                        append_code(data->c, "push eax\n");
+                    }
+
+                    n2 = get_child(n, 0);
+                    data2 = (ast_node *)get_data(n2);
+                    generate_code(n2, st, curr_scope, lg);
+                    stitch_code_append(n, n2);
+                    if (data_in_edx(n2))
+                    {
+                        append_code(data->c, "mov eax, edx\n");
+                    }
+                    append_code(data->c, "pop edx\n");
+
+                    append_code(data->c, "imul dx\n");
+                    append_code(data->c, "cwde\n");
+                }
+                else if (ldata->label.gms.t == DIV)
+                {
+                    data->c = create_empty_code();
+
+                    n2 = get_child(n, 1);
+                    data2 = (ast_node *)get_data(n2);
+                    generate_code(n2, st, curr_scope, lg);
+                    stitch_code_append(n, n2);
+                    if (data_in_edx(n2))
+                    {
+                        append_code(data->c, "push edx\n");
+                    }
+                    else
+                    {
+                        append_code(data->c, "push eax\n");
+                    }
+
+                    n2 = get_child(n, 0);
+                    data2 = (ast_node *)get_data(n2);
+                    generate_code(n2, st, curr_scope, lg);
+                    stitch_code_append(n, n2);
+                    if (data_in_edx(n2))
+                    {
+                        append_code(data->c, "mov eax, edx\n");
+                    }
+                    append_code(data->c, "pop edx\n");
+
+                    append_code(data->c, "push ebx\n");
+                    append_code(data->c, "mov ebx, edx\n");
+                    append_code(data->c, "mov edx, eax\n");
+                    append_code(data->c, "shr edx, 16\n");
+                    append_code(data->c, "idiv bx\n");
+                    append_code(data->c, "cwde\n");
+                    append_code(data->c, "pop ebx\n");
+                }
                 break;
             }
         }
