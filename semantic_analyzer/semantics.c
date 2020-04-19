@@ -2,6 +2,7 @@
 #include "../utils/terminal_name.h"
 
 bool is_while_expr = false;
+scope_node *while_scope = NULL;
 
 // FIRST AST PASS
 void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
@@ -220,8 +221,6 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			tree_node *const_var_node = get_child(var_node, 0);
 			ast_leaf *const_var_data = (ast_leaf *) get_data(const_var_node);
 			var_data->type = const_var_data->type;
-			// TODO: generate ast code to display value of
-			// this constant
 		}
 		else if (child_cnt == 2) {
 			ast_leaf *id_data = (ast_leaf *) get_data(get_child(var_node, 0));
@@ -602,9 +601,9 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		}
 
 		if (var_type == boolean && casestmts_cnt != 2) {
-							char err_msg[100];
-							sprintf(err_msg, "switch of var '%s' (boolean) should have exactly 2 case statements, found %d", id_data->ltk->lexeme, casestmts_cnt);
-							display_err("Semantic", end_line_num, err_msg);
+			char err_msg[100];
+			sprintf(err_msg, "switch of var '%s' (boolean) should have exactly 2 case statements, found %d", id_data->ltk->lexeme, casestmts_cnt);
+			display_err("Semantic", end_line_num, err_msg);
 		}
 
 		if (default_data != NULL) {
@@ -663,16 +662,19 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		tree_node *aobexpr_node = get_child(astn, 0);
 		tree_node *stmts_node = get_child(astn, 2);
 
-		is_while_expr = true;
-		first_pass(main_st, aobexpr_node, curr_scope);
-		is_while_expr = false;
-
-				// using start line num to generate key for hash map
+		// using start line num to generate key for hash map
 		int start_line_num = start_data->ltk->line_num;
 		int end_line_num = end_data->ltk->line_num;
 		char *str_line_num = (char *) malloc(25 * sizeof(char));
 		sprintf(str_line_num, "%d", start_line_num);
 		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func, start_line_num, end_line_num);
+
+		is_while_expr = true;
+		while_scope = new_scope;
+		first_pass(main_st, aobexpr_node, curr_scope);
+		is_while_expr = false;
+		while_scope = NULL;
+
 		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
 
 		ast_node *aobexpr_data = (ast_node *) get_data(aobexpr_node);
@@ -689,6 +691,22 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
 		for (int j = 0; j < stmts_ll->num_nodes; j++)
 			first_pass(main_st, ll_get(stmts_ll, j), new_scope);
+
+		bool is_while_valid = false;
+
+		for (int j = 0; j < new_scope->while_vars->num_nodes; j++) {
+			param_node *p = ll_get(new_scope->while_vars, j);
+			if (p->is_assigned) {
+				is_while_valid = true;
+				break;
+			}
+		}
+
+		if (!is_while_valid) {
+			char err_msg[100];
+			sprintf(err_msg, "atleast one conditional variable of while loop should be assigned in its body");
+			display_err("Type", end_line_num, err_msg);
+		}
 	}
 }
 

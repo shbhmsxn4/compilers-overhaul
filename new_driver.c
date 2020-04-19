@@ -63,7 +63,7 @@ int main (int argc, char *argv[]) {
 
 	/*char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/revisedtests/t5.txt";*/
 	/*char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/revisedtests/Sample_Symbol_table.txt";*/
-	char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/test2.txt";
+	char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/test.txt";
 	char dfa_specs_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/lang_specs/dfa_specs";
 	char grammar_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/lang_specs/grammar";
 
@@ -96,6 +96,23 @@ int main (int argc, char *argv[]) {
 			case 1:
 				printf("Option selected: 1 (Lexer)\n\n");
 
+				khm = create_keyword_hash_map(15);
+				l = create_lexer(test_file, dfa_specs_file, 512, 32, 30, khm);
+				lexical_token *tk = NULL;
+
+				printf("%-15s| %-20s| %-15s\n",
+					"Line no", "Lexeme", "Token Name");
+				printf("==============================================\n");
+				while ((tk = get_next_token(l)) != NULL && tk->t != DOLLAR) {
+					char *temp = calloc(50, sizeof(char));
+					terminal_name(tk->t, temp);
+
+					printf("%-15d| %-20s| %-15s\n",
+						tk->line_num, tk->lexeme, temp);
+					printf("----------------------------------------------\n");
+					free(temp);
+				}
+
 				break;
 
 			case 2:
@@ -112,6 +129,9 @@ int main (int argc, char *argv[]) {
 				fo = get_follow(gm, fi);
 				pt = generate_parse_table(gm, fi, fo);
 				ptree = parse(l, gm, pt);
+
+				printf("Parse tree traversal order:-\n");
+				printf("INORDER => Left most child -> Current node -> Remaining children\n\n\n");
 				print_parse_tree(ptree);
 
 				break;
@@ -132,6 +152,8 @@ int main (int argc, char *argv[]) {
 				ptree = parse(l, gm, pt);
 				ast_tree = generate_ast(ptree);
 
+				printf("AST traversal order:-\n");
+				printf("Depth first => Current Node -> Children from left to right\n\n\n");
 				print_ast_tree(ast_tree);
 
 				break;
@@ -169,7 +191,7 @@ int main (int argc, char *argv[]) {
 				printf("\n");
 
 				double comp_ratio = ((double)(pt_mem - ast_mem))/((double)pt_mem);
-				printf("Compression ratio: %lf\n", comp_ratio*100);
+				printf("Compression percentage: %lf\n", comp_ratio*100);
 				break;
 
 			case 5:

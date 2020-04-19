@@ -127,6 +127,12 @@ scope_node *create_new_scope (scope_node *parent, func_entry *func, int sline, i
 	new_scope->start_line = sline;
 	new_scope->end_line = eline;
 
+	new_scope->while_vars = create_linked_list(); 
+	if (parent != NULL) {
+		for (int i = 0; i < parent->while_vars->num_nodes; i++)
+			ll_append(new_scope->while_vars, ll_get(parent->while_vars, i));
+	}
+
 	return new_scope;
 }
 
@@ -177,6 +183,7 @@ common_id_entry *find_id (char *lexeme, scope_node *curr_scope, bool is_recursiv
 		centry = (common_id_entry *) malloc(sizeof(common_id_entry));
 		centry->is_array = false;
 		centry->entry.var_entry = ventry;
+		centry->is_param = false;
 		return centry;
 	}
 
@@ -185,6 +192,7 @@ common_id_entry *find_id (char *lexeme, scope_node *curr_scope, bool is_recursiv
 		centry = (common_id_entry *) malloc(sizeof(common_id_entry));
 		centry->is_array = true;
 		centry->entry.arr_entry = aentry;
+		centry->is_param = false;
 		return centry;
 	}
 
@@ -237,6 +245,7 @@ common_id_entry *param_to_st_entry (param_node *p) {
 	common_id_entry *centry = (common_id_entry *) malloc(sizeof(common_id_entry));
 	centry->is_array = p->is_array;
 	centry->entry = p->param;
+	centry->is_param = true;
 	return centry;
 }
 
@@ -296,6 +305,21 @@ common_id_entry *find_id_for (char *lexeme, scope_node *curr_scope, reason_flag 
 		case for_use : ret = find_id_for_use(lexeme, curr_scope);
 					   break;
 		case for_assign : ret = find_id_for_assign(lexeme, curr_scope, line_num);
+						  if (ret != NULL) {
+							  for (int i = 0; i < curr_scope->while_vars->num_nodes; i++) {
+								  param_node *n = ll_get(curr_scope->while_vars, i);
+								  if (ret->is_array == n->is_array) {
+									  if (n->is_array) {
+										  if (n->param.arr_entry == ret->entry.arr_entry)
+											  n->is_assigned = true;
+									  }
+									  else {
+										  if (n->param.var_entry == ret->entry.var_entry)
+											  n->is_assigned = true;
+									  }
+								  }
+							  }
+						  }
 						  break;
 		default : assert(false, "invalid need_for reason flag\n");
 				  ret = NULL;
@@ -338,11 +362,12 @@ int bound_type_check (arr_id_entry *entry, ast_leaf *index_data, scope_node *cur
 			char err_msg[100];
 			if (ind_entry->is_array) {
 				sprintf(err_msg, "index '%s' should be integer, found array", ind_var_name);
+				display_err("Semantic", index_data->ltk->line_num, err_msg);
 			}
 			else if (ind_entry->entry.var_entry->type != integer) {
 				sprintf(err_msg, "index '%s' should be integer, found %s", ind_var_name, type_to_str(ind_entry->entry.var_entry->type));
+				display_err("Semantic", index_data->ltk->line_num, err_msg);
 			}
-			display_err("Semantic", index_data->ltk->line_num, err_msg);
 		}
 		// TODO: run time bound check for dynamic arrs
 	}
@@ -370,6 +395,14 @@ common_id_entry *type_check_var (ast_leaf *id_data, ast_leaf *index_node, scope_
 			// TODO: generate asm code to compute expr
 			// and assign it to array element of given index
 		}
+	}
+
+	if (is_while_expr && need_for == for_use) {
+		param_node *n = (param_node *) malloc(sizeof(param_node));
+		n->is_array = entry->is_array;
+		n->param = entry->entry;
+		n->is_assigned = false;
+		ll_append(while_scope->while_vars, n);
 	}
 	return entry;
 }
@@ -446,7 +479,7 @@ hash_map *create_symbol_table () {
 void print_var_entry (var_id_entry *entry, scope_node *curr_scope, int level) {
 	char scope_lines[25];
 	sprintf(scope_lines, "%d-%d", curr_scope->start_line, curr_scope->end_line);
-	printf("%-10s| %-10s| %-15s| %-10d| %-10s| %-15s| %-15s| %-10s| %-10d| %-10d\n\n",
+	printf("%-15s| %-15s| %-15s| %-10d| %-10s| %-15s| %-15s| %-10s| %-10d| %-10d\n",
 			entry->lexeme, curr_scope->func->name, scope_lines, entry->width, "no", "---", "---",
 			type_to_str(entry->type), entry->offset, level);
 
@@ -499,12 +532,12 @@ void print_arr_entry (arr_id_entry *entry, scope_node *curr_scope, int level, bo
 	sprintf(range, "[%s, %s]", rstart, rend);
 
 	if (array_only_flag) {
-		printf("%-10s| %-15s| %-10s| %-15s| %-15s| %-10s\n\n",
+		printf("%-15s| %-15s| %-15s| %-15s| %-15s| %-15s\n",
 			curr_scope->func->name, scope_lines, entry->lexeme, static_or_dynamic,
 			range, type_to_str(entry->type));
 	}
 	else {
-		printf("%-10s| %-10s| %-15s| %-10d| %-10s| %-15s| %-15s| %-10s| %-10d| %-10d\n\n",
+		printf("%-15s| %-15s| %-15s| %-10d| %-10s| %-15s| %-15s| %-10s| %-10d| %-10d\n",
 			entry->lexeme, curr_scope->func->name, scope_lines, width, "yes", static_or_dynamic,
 			range, type_to_str(entry->type), entry->offset, level);
 
@@ -552,16 +585,16 @@ void print_symbol_table (hash_map *st) {
 	printf("\n********* SYMBOL TABLE *********\n\n");
 
 	if (array_only_flag) {
-		printf("%-10s| %-15s| %-10s| %-15s| %-15s| %-10s\n",
+		printf("%-15s| %-15s| %-15s| %-15s| %-15s| %-15s\n",
 			"Scope", "scope lines", "Var name", "static/dynamic", "range", "type");
-		printf("%-10s| %-15s| %-10s| %-15s| %-15s| %-10s\n",
+		printf("%-15s| %-15s| %-15s| %-15s| %-15s| %-15s\n",
 			"========", "========", "========", "========", "========", "========");
 	}
 	else {
-		printf("%-10s| %-10s| %-15s| %-10s| %-10s| %-15s| %-15s| %-10s| %-10s| %-10s\n",
+		printf("%-15s| %-15s| %-15s| %-10s| %-10s| %-15s| %-15s| %-10s| %-10s| %-10s\n",
 			"Var name", "Scope", "scope lines", "width", "is array", "static/dynamic", "range",
 			"type", "offset", "nesting level");
-		printf("%-10s| %-10s| %-15s| %-10s| %-10s| %-15s| %-15s| %-10s| %-10s| %-10s\n",
+		printf("%-15s| %-15s| %-15s| %-10s| %-10s| %-15s| %-15s| %-10s| %-10s| %-10s\n",
 			"========", "========", "========", "========", "========", "========", "========",
 			"========", "========", "========");
 	}
