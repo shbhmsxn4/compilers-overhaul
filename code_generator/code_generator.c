@@ -142,6 +142,8 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
     tree_node *n2 = NULL;
     id_type it_temp = 0;
     terminal t_temp = 0;
+    func_entry *f_entry = NULL;
+    scope_node *temp_scope = NULL;
     char *label_temp = NULL;
     char *label_temp2 = NULL;
     int offset = 0;
@@ -278,6 +280,19 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     append_code(data->c, "\n");
                 }
                 append_code(data->c, "\n\nmain:\n");
+                f_entry = fetch_from_hash_map(st, "program");
+                temp_scope = f_entry->local_scope;
+                hm_node *temp_hm_node = get_all_hm_nodes(temp_scope->var_id_st);
+                while (temp_hm_node != NULL)
+                {
+                    var_id_entry *temp_var_id_entry = (var_id_entry *)temp_hm_node->data;
+                    int temp_width = temp_var_id_entry->width;
+                    for (int i = 0; i < temp_width; i++)
+                    {
+                        append_code(data->c, "dec sp\n");
+                    }
+                    temp_hm_node = temp_hm_node->next;
+                }
                 n2 = get_child(n, 2);
                 data2 = (ast_node *)get_data(n2);
                 generate_code(n2, st, ((func_entry *)fetch_from_hash_map(st, "program"))->local_scope, lg);
