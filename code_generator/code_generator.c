@@ -560,14 +560,22 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         append_code(data->c, "mov dx, [ebp + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "]\n");
+                        append_code(data->c, "push eax\n");
+                        append_code(data->c, "mov ax, dx\n");
                         append_code(data->c, "cwde\n");
+                        append_code(data->c, "mov edx, eax\n");
+                        append_code(data->c, "pop eax");
                     }
                     else
                     {
                         append_code(data->c, "mov dx, [esp + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "]\n");
+                        append_code(data->c, "push eax\n");
+                        append_code(data->c, "mov ax, dx\n");
                         append_code(data->c, "cwde\n");
+                        append_code(data->c, "mov edx, eax\n");
+                        append_code(data->c, "pop eax");
                     }
                 }
                 else if (it_temp == real)
