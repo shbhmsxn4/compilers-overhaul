@@ -778,6 +778,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
 
             case for_loop:
                 data->c = create_empty_code();
+                bool for_loop_is_increasing = true;
                 int for_range1, for_range2;
 
                 n2 = get_child(n, 1);
@@ -796,29 +797,96 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
 
                 if (for_range1 > for_range2)
                 {
-                    int for_range_swap_var = for_range1;
-                    for_range1 = for_range2;
-                    for_range2 = for_range_swap_var;
+                    for_loop_is_increasing = false;
                 }
 
-                for_range2 -= for_range1;
-                for_range2 += 1;
+                n2 = get_child(n, 0);
+                ldata = (ast_leaf *)get_data(n2);
+                entry = find_id_for(ldata->ltk->lexeme, curr_scope, for_use, ldata->ltk->line_num);
+                offset = entry->entry.var_entry->offset;
+                is_param = entry->is_param;
+                assert(entry->entry.var_entry->type == integer, "for loop variable can only be an integer");
 
                 append_code(data->c, "mov ecx, ");
-                append_code(data->c, itoa(for_range2, (char *)calloc(MAX_INT_LEN, sizeof(char)), 10));
+                append_code(data->c, itoa(for_range1, (char *)calloc(MAX_INT_LEN, sizeof(char)), 10));
                 append_code(data->c, "\n");
+                if (is_param)
+                {
+                    append_code(data->c, "mov [ebp + ");
+                }
+                else
+                {
+                    append_code(data->c, "mov [esi + ");
+                }
+                append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                append_code(data->c, "], cx\n");
+
                 label_temp = (char *)calloc(MAX_LABEL_LEN, sizeof(char));
                 get_label(lg, label_temp);
                 append_code(data->c, label_temp);
                 append_code(data->c, ":\n");
+
+                label_temp2 = (char *)calloc(MAX_LABEL_LEN, sizeof(char));
+                get_label(lg, label_temp2);
+
+                append_code(data->c, "mov cx, ");
+                if (is_param)
+                {
+                    append_code(data->c, "[ebp + ");
+                }
+                else
+                {
+                    append_code(data->c, "[esi + ");
+                }
+                append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                append_code(data->c, "]\n");
+                append_code(data->c, "cmp cx, ");
+                append_code(data->c, itoa(for_range2, (char *)calloc(MAX_INT_LEN, sizeof(char)), 10));
+                append_code(data->c, "\n");
+                append_code(data->c, "je ");
+                append_code(data->c, label_temp2);
+                append_code(data->c, "\n");
+
                 n2 = get_child(n, 3);
                 data2 = (ast_node *)get_data(n2);
                 generate_code(n2, st, curr_scope, lg);
                 stitch_code_append(n, n2);
-                append_code(data->c, "dec ecx\n");
-                append_code(data->c, "jnz ");
+
+                append_code(data->c, "mov cx, ");
+                if (is_param)
+                {
+                    append_code(data->c, "[ebp + ");
+                }
+                else
+                {
+                    append_code(data->c, "[esi + ");
+                }
+                append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                append_code(data->c, "]\n");
+                if (for_loop_is_increasing)
+                {
+                    append_code(data->c, "inc cx\n");
+                }
+                else
+                {
+                    append_code(data->c, "dec cx\n");
+                }
+                append_code(data->c, "mov ");
+                if (is_param)
+                {
+                    append_code(data->c, "[ebp + ");
+                }
+                else
+                {
+                    append_code(data->c, "[esi + ");
+                }
+                append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                append_code(data->c, "], cx\n");
+                append_code(data->c, "jmp ");
                 append_code(data->c, label_temp);
                 append_code(data->c, "\n");
+                append_code(data->c, label_temp2);
+                append_code(data->c, ":\n");
 
                 break;
 
