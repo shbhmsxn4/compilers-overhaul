@@ -287,12 +287,12 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 while (temp_hm_node != NULL)
                 {
                     var_id_entry *temp_var_id_entry = (var_id_entry *)temp_hm_node->data;
-                    temp_width = temp_var_id_entry->width;
-                    for (int i = 0; i < temp_width; i++)
-                    {
-                        append_code(data->c, "dec esp\n");
-                    }
+                    temp_width += temp_var_id_entry->width;
                     temp_hm_node = temp_hm_node->next;
+                }
+                for (int i = 0; i < temp_width; i++)
+                {
+                    append_code(data->c, "dec esp\n");
                 }
                 n2 = get_child(n, 2);
                 data2 = (ast_node *)get_data(n2);
