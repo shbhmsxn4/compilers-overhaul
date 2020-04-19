@@ -394,11 +394,11 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     data2 = (ast_node *)get_data(n2);
                     generate_code(n2, st, curr_scope, lg);
                     stitch_code_append(n, n2);
-                    append_code(data->c, "push edx\n");
-                    append_code(data->c, "push sp");
+                    append_code(data->c, "mov [inpt], edx\n");
+                    append_code(data->c, "push inpt\n");
                     append_code(data->c, "push fmtd\n");
                     append_code(data->c, "call printf\n");
-                    append_code(data->c, "add esp, 12\n");
+                    append_code(data->c, "add esp, 8\n");
                     // TODO floats and bools ka printing
                 }
                 else
