@@ -14,6 +14,7 @@
 #define MAX_OFFSET_DIGS 4
 #define MAX_LABEL_LEN 5
 #define MAX_INT_LEN 8
+#define MAX_WIDTH_DIGS 8
 
 code *create_empty_code();
 

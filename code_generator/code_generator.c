@@ -281,27 +281,17 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 }
                 append_code(data->c, "\n\nmain:\n");
                 f_entry = fetch_from_hash_map(st, "program");
-                temp_scope = f_entry->local_scope;
-                hm_node *temp_hm_node = get_all_hm_nodes(temp_scope->var_id_st);
-                int temp_width = 0;
-                while (temp_hm_node != NULL)
-                {
-                    var_id_entry *temp_var_id_entry = (var_id_entry *)temp_hm_node->data;
-                    temp_width += temp_var_id_entry->width;
-                    temp_hm_node = temp_hm_node->next;
-                }
-                for (int i = 0; i < temp_width; i++)
-                {
-                    append_code(data->c, "dec esp\n");
-                }
+                int temp_width = f_entry->width;
+                append_code(data->c, "sub esp, ");
+                append_code(data->c, itoa(temp_width, (char *)calloc(MAX_WIDTH_DIGS, sizeof(char)), 10));
+                append_code(data->c, "\n");
                 n2 = get_child(n, 2);
                 data2 = (ast_node *)get_data(n2);
                 generate_code(n2, st, ((func_entry *)fetch_from_hash_map(st, "program"))->local_scope, lg);
                 stitch_code_append(n, n2);
-                for (int i = 0; i < temp_width; i++)
-                {
-                    append_code(data->c, "inc esp\n");
-                }
+                append_code(data->c, "add esp, ");
+                append_code(data->c, itoa(temp_width, (char *)calloc(MAX_WIDTH_DIGS, sizeof(char)), 10));
+                append_code(data->c, "\n");
                 append_code(data->c, "ret\n");
                 append_code(data->c, "\n\nsection .data\n");
                 append_code(data->c, "truestr db \"true\", 0\n");
