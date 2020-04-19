@@ -189,14 +189,14 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
             {
                 if (is_param)
                 {
-                    append_code(ldata->c, "mov dx, [bp + ");
+                    append_code(ldata->c, "mov dx, [ebp + ");
                     append_code(ldata->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                     append_code(ldata->c, "]\n");
                     append_code(ldata->c, "and edx, 00001111h\n");
                 }
                 else
                 {
-                    append_code(ldata->c, "mov dx, [si + ");
+                    append_code(ldata->c, "mov dx, [esp + ");
                     append_code(ldata->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                     append_code(ldata->c, "]\n");
                     append_code(ldata->c, "and edx, 00001111h\n");
@@ -206,13 +206,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
             {
                 if (is_param)
                 {
-                    append_code(ldata->c, "mov edx, [bp + ");
+                    append_code(ldata->c, "mov edx, [ebp + ");
                     append_code(ldata->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                     append_code(ldata->c, "]\n");
                 }
                 else
                 {
-                    append_code(ldata->c, "mov edx, [si + ");
+                    append_code(ldata->c, "mov edx, [esp + ");
                     append_code(ldata->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                     append_code(ldata->c, "]\n");
                 }
@@ -221,14 +221,14 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
             {
                 if (is_param)
                 {
-                    append_code(ldata->c, "mov dl, [bp + ");
+                    append_code(ldata->c, "mov dl, [ebp + ");
                     append_code(ldata->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                     append_code(ldata->c, "]\n");
                     append_code(ldata->c, "and edx, 00000011h\n");
                 }
                 else
                 {
-                    append_code(ldata->c, "mov dl, [si + ");
+                    append_code(ldata->c, "mov dl, [esp + ");
                     append_code(ldata->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                     append_code(ldata->c, "]\n");
                     append_code(ldata->c, "and edx, 00000011h\n");
@@ -283,21 +283,25 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 f_entry = fetch_from_hash_map(st, "program");
                 temp_scope = f_entry->local_scope;
                 hm_node *temp_hm_node = get_all_hm_nodes(temp_scope->var_id_st);
+                int temp_width;
                 while (temp_hm_node != NULL)
                 {
                     var_id_entry *temp_var_id_entry = (var_id_entry *)temp_hm_node->data;
-                    int temp_width = temp_var_id_entry->width;
+                    temp_width = temp_var_id_entry->width;
                     for (int i = 0; i < temp_width; i++)
                     {
-                        append_code(data->c, "dec sp\n");
+                        append_code(data->c, "dec esp\n");
                     }
                     temp_hm_node = temp_hm_node->next;
                 }
-                append_code(data->c, "mov si, sp\n");
                 n2 = get_child(n, 2);
                 data2 = (ast_node *)get_data(n2);
                 generate_code(n2, st, ((func_entry *)fetch_from_hash_map(st, "program"))->local_scope, lg);
                 stitch_code_append(n, n2);
+                for (int i = 0; i < temp_width; i++)
+                {
+                    append_code(data->C, "inc esp\n");
+                }
                 append_code(data->c, "ret\n");
                 append_code(data->c, "\n\nsection .data\n");
                 append_code(data->c, "truestr db \"true\", 0\n");
@@ -348,13 +352,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     append_code(data->c, "mov edx, inpt\n");
                     if (is_param)
                     {
-                        append_code(data->c, "mov [bp + ");
+                        append_code(data->c, "mov [ebp + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
                     else
                     {
-                        append_code(data->c, "mov [si + ");
+                        append_code(data->c, "mov [esp + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
@@ -368,13 +372,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     append_code(data->c, "mov edx, inpt\n");
                     if (is_param)
                     {
-                        append_code(data->c, "mov [bp + ");
+                        append_code(data->c, "mov [ebp + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
                     else
                     {
-                        append_code(data->c, "mov [si + ");
+                        append_code(data->c, "mov [esp + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
@@ -419,13 +423,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         is_param = entry->is_param;
                         if (is_param)
                         {
-                            append_code(data->c, "mov edx, [bp + ");
+                            append_code(data->c, "mov edx, [ebp + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "]\n");
                         }
                         else
                         {
-                            append_code(data->c, "mov edx, [si + ");
+                            append_code(data->c, "mov edx, [esp + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "]\n");
                         }
@@ -442,13 +446,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         is_param = entry->is_param;
                         if (is_param)
                         {
-                            append_code(data->c, "mov edx, [bp + ");
+                            append_code(data->c, "mov edx, [ebp + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "]\n");
                         }
                         else
                         {
-                            append_code(data->c, "mov edx, [si + ");
+                            append_code(data->c, "mov edx, [esp + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "]\n");
                         }
@@ -472,13 +476,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     append_code(data->c, "mov edx, [inpt]\n");
                     if (is_param)
                     {
-                        append_code(data->c, "mov [bp + ");
+                        append_code(data->c, "mov [ebp + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
                     else
                     {
-                        append_code(data->c, "mov [si + ");
+                        append_code(data->c, "mov [esp + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
@@ -492,13 +496,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     append_code(data->c, "mov edx, inpt\n");
                     if (is_param)
                     {
-                        append_code(data->c, "mov [bp + ");
+                        append_code(data->c, "mov [ebp + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
                     else
                     {
-                        append_code(data->c, "mov [si + ");
+                        append_code(data->c, "mov [esp + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "], edx\n");
                     }
@@ -534,13 +538,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     {
                         if (is_param)
                         {
-                            append_code(data->c, "mov [bp + ");
+                            append_code(data->c, "mov [ebp + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "], dx\n");
                         }
                         else
                         {
-                            append_code(data->c, "mov [si + ");
+                            append_code(data->c, "mov [esp + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "], dx\n");
                         }
@@ -549,13 +553,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     {
                         if (is_param)
                         {
-                            append_code(data->c, "mov [bp + ");
+                            append_code(data->c, "mov [ebp + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "], edx");
                         }
                         else
                         {
-                            append_code(data->c, "mov [si + ");
+                            append_code(data->c, "mov [esp + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "], edx");
                         }
@@ -564,13 +568,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     {
                         if (is_param)
                         {
-                            append_code(data->c, "mov [bp + ");
+                            append_code(data->c, "mov [ebp + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "], dl");
                         }
                         else
                         {
-                            append_code(data->c, "mov [si + ");
+                            append_code(data->c, "mov [esp + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                             append_code(data->c, "], dl");
                         }
@@ -601,14 +605,14 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 {
                     if (is_param)
                     {
-                        append_code(data->c, "mov dx, [bp + ");
+                        append_code(data->c, "mov dx, [ebp + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "]\n");
                         append_code(data->c, "cwde\n");
                     }
                     else
                     {
-                        append_code(data->c, "mov dx, [si + ");
+                        append_code(data->c, "mov dx, [esp + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                         append_code(data->c, "]\n");
                         append_code(data->c, "cwde\n");
