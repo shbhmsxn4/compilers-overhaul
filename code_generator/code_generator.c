@@ -300,7 +300,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 stitch_code_append(n, n2);
                 for (int i = 0; i < temp_width; i++)
                 {
-                    append_code(data->C, "inc esp\n");
+                    append_code(data->c, "inc esp\n");
                 }
                 append_code(data->c, "ret\n");
                 append_code(data->c, "\n\nsection .data\n");
