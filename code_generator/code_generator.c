@@ -737,7 +737,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 append_code(data->c, "cmp eax, edx\n");
                 if (t_temp == LT)
                 {
-                    append_code(data->c, "jlt ");
+                    append_code(data->c, "jl ");
                 }
                 else if (t_temp == LE)
                 {
@@ -745,7 +745,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 }
                 else if (t_temp == GT)
                 {
-                    append_code(data->c, "jgt ");
+                    append_code(data->c, "jg ");
                 }
                 else if (t_temp == GE)
                 {
