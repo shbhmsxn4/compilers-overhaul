@@ -1,6 +1,8 @@
 #include "../symbol_table/symbol_table.h"
 #include "../utils/terminal_name.h"
 
+bool is_while_expr = false;
+scope_node *while_scope = NULL;
 
 // FIRST AST PASS
 void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
@@ -83,10 +85,11 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 				char err_msg[100];
 				sprintf(err_msg, "'%s' module re-defined", func_name);
 				display_err("Semantic", module_id_data->ltk->line_num, err_msg);
+				return; // don't process the module
 			}
 			if (f_st_entry->is_declared && !f_st_entry->is_called) {
 				char err_msg[100];
-				sprintf(err_msg, "'%s' module has redundant declaration", func_name);
+				sprintf(err_msg, "'%s' module declaration & definition appear before its call", func_name);
 				display_err("Semantic", module_id_data->ltk->line_num, err_msg);
 			}
 		}
@@ -122,7 +125,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 						range_indices, NULL,
 						-1, -1);
 
-				arr_assign_offset(fparam->param.arr_entry, f_st_entry);
+				arr_assign_offset(fparam->param.arr_entry, f_st_entry, true);
 			}
 			else {
 				fparam->is_array = false;
@@ -162,6 +165,9 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		}
 		f_st_entry->output_param_list = fop_ll;
 
+		// NOTE:
+		f_st_entry->width = 0; // resetting width for local params
+
 		if (!entry_exists) add_to_hash_map(main_st, func_name, f_st_entry);
 
 		// MODULEDEF
@@ -180,8 +186,8 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 					pname = pnode->param.var_entry->lexeme;
 				}
 				char err_msg[100];
-				sprintf(err_msg, "Output param '%s' is not assigned in module '%s'", pname, func_name);
-				display_err("Semantic", module_id_data->ltk->line_num, err_msg);
+				sprintf(err_msg, "output param '%s' is not assigned in module '%s'", pname, func_name);
+				display_err("Semantic", f_st_entry->local_scope->end_line, err_msg);
 			}
 		}
 	}
@@ -215,8 +221,6 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			tree_node *const_var_node = get_child(var_node, 0);
 			ast_leaf *const_var_data = (ast_leaf *) get_data(const_var_node);
 			var_data->type = const_var_data->type;
-			// TODO: generate ast code to display value of
-			// this constant
 		}
 		else if (child_cnt == 2) {
 			ast_leaf *id_data = (ast_leaf *) get_data(get_child(var_node, 0));
@@ -279,13 +283,13 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		if (!expr_data->is_leaf) first_pass(main_st, expr_node, curr_scope);
 
 		/*printf("lhs: %d; rhs: %d\n", var_type, expr_data->type);*/
-		if (expr_data->type == -1) {
+		if (expr_data->type == -1 || var_type == -1) {
 			// TODO: means that the rhs had internal type conflcts
 			// what to do in this case??
 		}
 		else if (var_type != expr_data->type) {
 			char err_msg[100];
-			sprintf(err_msg, "Type mismatch - LHS is %s, RHS is %s", type_to_str(var_type), type_to_str(expr_data->type));
+			sprintf(err_msg, "type mismatch - LHS is %s, RHS is %s", type_to_str(var_type), type_to_str(expr_data->type));
 			display_err("Type", id_data->ltk->line_num, err_msg);
 		}
 		else if (expr_data->type == array) {
@@ -294,7 +298,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			common_id_entry *rhs_entry = type_check_var(rhs_arr_data, NULL, curr_scope, for_use);
 			if (!is_same_type(id_entry, rhs_entry)) {
 				char err_msg[100];
-				sprintf(err_msg, "Type mismatch in LHS, RHS arrays");
+				sprintf(err_msg, "type mismatch in LHS, RHS arrays");
 				display_err("Type", id_data->ltk->line_num, err_msg);
 			}
 		}
@@ -438,7 +442,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 				// TODO: WHAT HERE?
 			}
 			else if (left_op_data->type != right_op_data->type) {
-				sprintf(err_msg, "Type mismatch at operator '%s', left operand is %s right operand is %s", op_name, type_to_str(left_op_data->type), type_to_str(right_op_data->type));
+				sprintf(err_msg, "type mismatch at operator '%s', left operand is %s right operand is %s", op_name, type_to_str(left_op_data->type), type_to_str(right_op_data->type));
 				display_err("Type", op_node->ltk->line_num, err_msg);
 			}
 			else if (left_op_data->type != boolean) {
@@ -457,7 +461,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 				// TODO: WHAT HERE?
 			}
 			else if (left_op_data->type != right_op_data->type) {
-				sprintf(err_msg, "Type mismatch at operator '%s', left operand is %s right operand is %s", op_name, type_to_str(left_op_data->type), type_to_str(right_op_data->type));
+				sprintf(err_msg, "type mismatch at operator '%s', left operand is %s right operand is %s", op_name, type_to_str(left_op_data->type), type_to_str(right_op_data->type));
 				display_err("Type", op_node->ltk->line_num, err_msg);
 			}
 			else if (left_op_data->type == boolean) {
@@ -494,15 +498,16 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 				if (dtype == array) {
 					tree_node *range_arrays = get_child(dtype_node, 0);
 					int *range_indices = get_static_range(range_arrays);
-					common_id_entry **range_entries = get_dynamic_range(range_arrays, curr_scope);
+					/*common_id_entry **range_entries = get_dynamic_range(range_arrays, curr_scope);*/
+					char **range_lexemes = get_dynamic_range(range_arrays, curr_scope);
 					
 					arr_id_entry *entry = create_arr_entry(
 							id_var_name,
 							get_type_from_node(get_child(dtype_node, 1)),
-							range_indices, range_entries,
+							range_indices, range_lexemes,
 							-1, -1);
 
-					arr_assign_offset(entry, curr_scope->func);
+					arr_assign_offset(entry, curr_scope->func, false);
 
 					add_to_hash_map(curr_scope->arr_st, id_var_name, entry);
 				}
@@ -542,14 +547,10 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			char err_msg[100];
 			sprintf(err_msg, "switch var '%s' should be integer or boolean, found %s", id_data->ltk->lexeme, type_to_str(var_type));
 			display_err("Semantic", id_data->ltk->line_num, err_msg);
+			return;
 		}
 
 		int casestmts_cnt = casestmts_ll->num_nodes;
-		if (var_type == boolean && casestmts_cnt != 2) {
-			char err_msg[100];
-			sprintf(err_msg, "switch of var '%s' (boolean) should have exactly 2 case statements, found %d", id_data->ltk->lexeme, casestmts_cnt);
-			display_err("Semantic", id_data->ltk->line_num, err_msg);
-		}
 
 		bool got_true = false, got_false = false;
 		for (int i = 0; i < casestmts_cnt; i++) {
@@ -580,27 +581,33 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			if (default_data == NULL) {
 				char err_msg[100];
 				sprintf(err_msg, "switch of var '%s' (integer) should have a default statement", id_data->ltk->lexeme);
-				display_err("Semantic", id_data->ltk->line_num, err_msg);
+				display_err("Semantic", end_line_num, err_msg);
 			}
 		}
 		else if (var_type == boolean) {
 			char err_msg[100];
 			if (!got_true) {
 				sprintf(err_msg, "case 'true' not found for switch of var '%s' (boolean)", id_data->ltk->lexeme);
-				display_err("Semantic", id_data->ltk->line_num, err_msg);
+				display_err("Semantic", end_line_num, err_msg);
 			}
 			if (!got_false) {
 				sprintf(err_msg, "case 'false' not found for switch of var '%s' (boolean)", id_data->ltk->lexeme);
-				display_err("Semantic", id_data->ltk->line_num, err_msg);
+				display_err("Semantic", end_line_num, err_msg);
 			}
 			if (default_data != NULL) {
 				sprintf(err_msg, "switch of var '%s' (boolean) should not have a default statement", id_data->ltk->lexeme);
-				display_err("Semantic", id_data->ltk->line_num, err_msg);
+				display_err("Semantic", ((ast_leaf *) get_data(get_child(default_node, 0)))->ltk->line_num, err_msg);
 			}
 		}
 
+		if (var_type == boolean && casestmts_cnt != 2) {
+			char err_msg[100];
+			sprintf(err_msg, "switch of var '%s' (boolean) should have exactly 2 case statements, found %d", id_data->ltk->lexeme, casestmts_cnt);
+			display_err("Semantic", end_line_num, err_msg);
+		}
+
 		if (default_data != NULL) {
-			tree_node *stmts_node = get_child(default_node, 0);
+			tree_node *stmts_node = get_child(default_node, 1);
 
 			linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
 			for (int j = 0; j < stmts_ll->num_nodes; j++)
@@ -655,14 +662,19 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		tree_node *aobexpr_node = get_child(astn, 0);
 		tree_node *stmts_node = get_child(astn, 2);
 
-		first_pass(main_st, aobexpr_node, curr_scope);
-
-				// using start line num to generate key for hash map
+		// using start line num to generate key for hash map
 		int start_line_num = start_data->ltk->line_num;
 		int end_line_num = end_data->ltk->line_num;
 		char *str_line_num = (char *) malloc(25 * sizeof(char));
 		sprintf(str_line_num, "%d", start_line_num);
 		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func, start_line_num, end_line_num);
+
+		is_while_expr = true;
+		while_scope = new_scope;
+		first_pass(main_st, aobexpr_node, curr_scope);
+		is_while_expr = false;
+		while_scope = NULL;
+
 		add_to_hash_map(curr_scope->child_scopes, str_line_num, new_scope);
 
 		ast_node *aobexpr_data = (ast_node *) get_data(aobexpr_node);
@@ -679,6 +691,22 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
 		for (int j = 0; j < stmts_ll->num_nodes; j++)
 			first_pass(main_st, ll_get(stmts_ll, j), new_scope);
+
+		bool is_while_valid = false;
+
+		for (int j = 0; j < new_scope->while_vars->num_nodes; j++) {
+			param_node *p = ll_get(new_scope->while_vars, j);
+			if (p->is_assigned) {
+				is_while_valid = true;
+				break;
+			}
+		}
+
+		if (!is_while_valid) {
+			char err_msg[100];
+			sprintf(err_msg, "atleast one conditional variable of while loop should be assigned in its body");
+			display_err("Type", end_line_num, err_msg);
+		}
 	}
 }
 
@@ -1026,7 +1054,7 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 				tree_node *arg_var_lnode = (tree_node *) ll_get(arg_var_ll, i);
 				ast_leaf *arg_var_data = (ast_leaf *) get_data(arg_var_lnode);
 				char *arg_var_name = arg_var_data->ltk->lexeme;
-				common_id_entry *arg_var_entry = find_id_for_use(arg_var_name, curr_scope);
+				common_id_entry *arg_var_entry = type_check_var(arg_var_data, NULL, curr_scope, for_use);
 				if (arg_var_entry != NULL) {
 					param_node *ip_lnode = (param_node *) ll_get(ip_ll, i);
 					common_id_entry *ip_lentry = param_to_st_entry(ip_lnode);
@@ -1225,7 +1253,7 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
  */
 
 		if (default_data != NULL) {
-			tree_node *stmts_node = get_child(default_node, 0);
+			tree_node *stmts_node = get_child(default_node, 1);
 
 			linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
 			for (int j = 0; j < stmts_ll->num_nodes; j++)
@@ -1275,7 +1303,9 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		tree_node *aobexpr_node = get_child(astn, 0);
 		tree_node *stmts_node = get_child(astn, 2);
 
+		is_while_expr = true;
 		second_pass(main_st, aobexpr_node, curr_scope);
+		is_while_expr = false;
 
 		/*
 		 *ast_node *aobexpr_data = (ast_node *) get_data(aobexpr_node);

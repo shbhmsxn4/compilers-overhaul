@@ -11,7 +11,7 @@
 // global `display_err_flag` used
 void display_err (char *err_type, int line, char *err_msg) {
 	if (display_err_flag)
-		printf("%s error at line %d : %s\n", err_type, line, err_msg);
+		printf("%s error at line %d : %s\n\n", err_type, line, err_msg);
 }
 
 id_type terminal_to_type (terminal t) {
@@ -65,8 +65,8 @@ int* get_static_range (tree_node *node) {
 	return indices;
 }
 
-common_id_entry** get_dynamic_range (tree_node *node, scope_node *curr_scope) {
-	common_id_entry **indices = (common_id_entry **) malloc(2*sizeof(var_id_entry*));
+char** get_dynamic_range (tree_node *node, scope_node *curr_scope) {
+	char **indices = (char **) malloc(2*sizeof(char*));
 	indices[0] = NULL;
 	indices[1] = NULL;
 	ast_leaf *index1 = (ast_leaf *) get_data(get_child(node, 0));
@@ -75,39 +75,44 @@ common_id_entry** get_dynamic_range (tree_node *node, scope_node *curr_scope) {
 	// if static then range value is NULL 
 	if (index1->label.gms.t == ID) {
 		common_id_entry *var_entry = type_check_var(index1, NULL, curr_scope, for_use);
-		indices[0] = var_entry;
-		if (var_entry->is_array) {
-			char err_msg[100];
-			sprintf(err_msg, "range var '%s' should be of type integer, found array instead", index1->ltk->lexeme);
-			display_err("Type", index1->ltk->line_num, err_msg);
-		}
-		else {
-			var_id_entry *entry = var_entry->entry.var_entry;
-			if (entry->type != integer) {
+		indices[0] = index1->ltk->lexeme;
+		if (var_entry != NULL) {
+			if (var_entry->is_array) {
 				char err_msg[100];
-				sprintf(err_msg, "range var '%s' should be of type integer, found %s instead", index1->ltk->lexeme, type_to_str(entry->type));
+				sprintf(err_msg, "range var '%s' should be of type integer, found array instead", index1->ltk->lexeme);
 				display_err("Type", index1->ltk->line_num, err_msg);
+			}
+			else {
+				var_id_entry *entry = var_entry->entry.var_entry;
+				if (entry->type != integer) {
+					char err_msg[100];
+					sprintf(err_msg, "range var '%s' should be of type integer, found %s instead", index1->ltk->lexeme, type_to_str(entry->type));
+					display_err("Type", index1->ltk->line_num, err_msg);
+				}
 			}
 		}
 	}
 
 	if (index2->label.gms.t == ID) {
 		common_id_entry *var_entry = type_check_var(index2, NULL, curr_scope, for_use);
-		indices[1] = var_entry;
-		if (var_entry->is_array) {
-			char err_msg[100];
-			sprintf(err_msg, "range var '%s' should be of type integer, found array instead", index2->ltk->lexeme);
-			display_err("Type", index2->ltk->line_num, err_msg);
-		}
-		else {
-			var_id_entry *entry = var_entry->entry.var_entry;
-			if (entry->type != integer) {
+		indices[1] = index2->ltk->lexeme;
+		if (var_entry != NULL) {
+			if (var_entry->is_array) {
 				char err_msg[100];
-				sprintf(err_msg, "range var '%s' should be of type integer, found %s instead", index2->ltk->lexeme, type_to_str(entry->type));
+				sprintf(err_msg, "range var '%s' should be of type integer, found array instead", index2->ltk->lexeme);
 				display_err("Type", index2->ltk->line_num, err_msg);
+			}
+			else {
+				var_id_entry *entry = var_entry->entry.var_entry;
+				if (entry->type != integer) {
+					char err_msg[100];
+					sprintf(err_msg, "range var '%s' should be of type integer, found %s instead", index2->ltk->lexeme, type_to_str(entry->type));
+					display_err("Type", index2->ltk->line_num, err_msg);
+				}
 			}
 		}
 	}
+			
 	return indices;
 }
 
@@ -122,6 +127,12 @@ scope_node *create_new_scope (scope_node *parent, func_entry *func, int sline, i
 	new_scope->start_line = sline;
 	new_scope->end_line = eline;
 
+	new_scope->while_vars = create_linked_list(); 
+	if (parent != NULL) {
+		for (int i = 0; i < parent->while_vars->num_nodes; i++)
+			ll_append(new_scope->while_vars, ll_get(parent->while_vars, i));
+	}
+
 	return new_scope;
 }
 
@@ -134,14 +145,14 @@ var_id_entry *create_var_entry (char *lexeme, id_type type, int width, int offse
 	return entry;
 }
 
-arr_id_entry *create_arr_entry (char *lexeme, id_type type, int *rindices, common_id_entry **rentries, int width, int offset) {
+arr_id_entry *create_arr_entry (char *lexeme, id_type type, int *rindices, char **rlexemes, int width, int offset) {
 	arr_id_entry *entry = (arr_id_entry *) malloc(sizeof(arr_id_entry));
 	strcpy(entry->lexeme, lexeme);
 	entry->type = type;
 	entry->range_start = rindices[0];
 	entry->range_end = rindices[1];
-	entry->rstart_entry = (rentries == NULL) ? NULL : rentries[0];
-	entry->rend_entry = (rentries == NULL) ? NULL : rentries[1];
+	entry->rstart_lexeme = (rlexemes == NULL) ? NULL : rlexemes[0];
+	entry->rend_lexeme = (rlexemes == NULL) ? NULL : rlexemes[1];
 	entry->width = (width != -1) ? width : get_width_from_type(type);
 	entry->offset = offset;
 
@@ -172,6 +183,7 @@ common_id_entry *find_id (char *lexeme, scope_node *curr_scope, bool is_recursiv
 		centry = (common_id_entry *) malloc(sizeof(common_id_entry));
 		centry->is_array = false;
 		centry->entry.var_entry = ventry;
+		centry->is_param = false;
 		return centry;
 	}
 
@@ -180,6 +192,7 @@ common_id_entry *find_id (char *lexeme, scope_node *curr_scope, bool is_recursiv
 		centry = (common_id_entry *) malloc(sizeof(common_id_entry));
 		centry->is_array = true;
 		centry->entry.arr_entry = aentry;
+		centry->is_param = false;
 		return centry;
 	}
 
@@ -232,6 +245,7 @@ common_id_entry *param_to_st_entry (param_node *p) {
 	common_id_entry *centry = (common_id_entry *) malloc(sizeof(common_id_entry));
 	centry->is_array = p->is_array;
 	centry->entry = p->param;
+	centry->is_param = true;
 	return centry;
 }
 
@@ -266,7 +280,7 @@ common_id_entry *find_id_for_use (char *lexeme, scope_node *curr_scope) {
 common_id_entry *find_id_for_assign (char *lexeme, scope_node *curr_scope, int line_num) {
 	if (curr_scope->loop_var_entry != NULL && strcmp(lexeme, curr_scope->loop_var_entry->lexeme) == 0) {
 		char err_msg[100];
-		sprintf(err_msg, "Loop variable '%s' cannot be re-defined", lexeme);
+		sprintf(err_msg, "Loop variable '%s' cannot be assigned a value", lexeme);
 		display_err("Semantic", line_num, err_msg);
 	}
 
@@ -291,6 +305,21 @@ common_id_entry *find_id_for (char *lexeme, scope_node *curr_scope, reason_flag 
 		case for_use : ret = find_id_for_use(lexeme, curr_scope);
 					   break;
 		case for_assign : ret = find_id_for_assign(lexeme, curr_scope, line_num);
+						  if (ret != NULL) {
+							  for (int i = 0; i < curr_scope->while_vars->num_nodes; i++) {
+								  param_node *n = ll_get(curr_scope->while_vars, i);
+								  if (ret->is_array == n->is_array) {
+									  if (n->is_array) {
+										  if (n->param.arr_entry == ret->entry.arr_entry)
+											  n->is_assigned = true;
+									  }
+									  else {
+										  if (n->param.var_entry == ret->entry.var_entry)
+											  n->is_assigned = true;
+									  }
+								  }
+							  }
+						  }
 						  break;
 		default : assert(false, "invalid need_for reason flag\n");
 				  ret = NULL;
@@ -333,11 +362,12 @@ int bound_type_check (arr_id_entry *entry, ast_leaf *index_data, scope_node *cur
 			char err_msg[100];
 			if (ind_entry->is_array) {
 				sprintf(err_msg, "index '%s' should be integer, found array", ind_var_name);
+				display_err("Semantic", index_data->ltk->line_num, err_msg);
 			}
 			else if (ind_entry->entry.var_entry->type != integer) {
 				sprintf(err_msg, "index '%s' should be integer, found %s", ind_var_name, type_to_str(ind_entry->entry.var_entry->type));
+				display_err("Semantic", index_data->ltk->line_num, err_msg);
 			}
-			display_err("Semantic", index_data->ltk->line_num, err_msg);
 		}
 		// TODO: run time bound check for dynamic arrs
 	}
@@ -366,6 +396,14 @@ common_id_entry *type_check_var (ast_leaf *id_data, ast_leaf *index_node, scope_
 			// and assign it to array element of given index
 		}
 	}
+
+	if (is_while_expr && need_for == for_use) {
+		param_node *n = (param_node *) malloc(sizeof(param_node));
+		n->is_array = entry->is_array;
+		n->param = entry->entry;
+		n->is_assigned = false;
+		ll_append(while_scope->while_vars, n);
+	}
 	return entry;
 }
 
@@ -386,9 +424,15 @@ bool is_same_type (common_id_entry *a, common_id_entry *b) {
 	else if (a->is_array) {
 		arr_id_entry *aentry = a->entry.arr_entry;
 		arr_id_entry *bentry = b->entry.arr_entry;
-		return (aentry->type == bentry->type &&
+		
+		if (aentry->is_static && bentry->is_static) {
+			return (aentry->type == bentry->type &&
 				aentry->range_start == bentry->range_start &&
 				aentry->range_end == bentry->range_end);
+		}
+		else {
+			return (aentry->type == bentry->type);
+		}
 	}
 	else {
 		var_id_entry *aentry = a->entry.var_entry;
@@ -397,14 +441,20 @@ bool is_same_type (common_id_entry *a, common_id_entry *b) {
 	}
 }
 
-void arr_assign_offset (arr_id_entry *entry, func_entry *func) {
+void arr_assign_offset (arr_id_entry *entry, func_entry *func, bool is_param) {
 	int func_width = func->width;
 	entry->offset = func_width;
-	if (entry->is_static) {
-		func->width = func_width + ((entry->range_end - entry->range_start + 1) * entry->width);
+	if (is_param) {
+		func->width = func_width + (2 * get_width_from_type(integer)) + 1;
 	}
 	else {
-		func->width = func_width + ASM_ADDR_SIZE;
+		if (entry->is_static) {
+			func->width = func_width + ((entry->range_end - entry->range_start + 1) * entry->width) + 1;
+		}
+		else {
+			/*func->width = func_width + ASM_ADDR_SIZE;*/
+			func->width = func_width + 1;
+		}
 	}
 	/*printf("var width off : %s %d %d\n", entry->lexeme, entry->width, entry->offset);*/
 }
@@ -429,41 +479,51 @@ hash_map *create_symbol_table () {
 void print_var_entry (var_id_entry *entry, scope_node *curr_scope, int level) {
 	char scope_lines[25];
 	sprintf(scope_lines, "%d-%d", curr_scope->start_line, curr_scope->end_line);
-	printf("%-10s| %-10s| %-15s| %-10d| %-10s| %-15s| %-15s| %-10s| %-10d| %-10d\n\n",
+	printf("%-15s| %-15s| %-15s| %-10d| %-10s| %-15s| %-15s| %-10s| %-10d| %-10d\n",
 			entry->lexeme, curr_scope->func->name, scope_lines, entry->width, "no", "---", "---",
 			type_to_str(entry->type), entry->offset, level);
 
 }
 
-void print_arr_entry (arr_id_entry *entry, scope_node *curr_scope, int level) {
+void print_arr_entry (arr_id_entry *entry, scope_node *curr_scope, int level, bool is_param) {
 	char scope_lines[25];
 	sprintf(scope_lines, "%d-%d", curr_scope->start_line, curr_scope->end_line);
+
+	int width;
+	if (is_param) {
+		width = (2 * get_width_from_type(integer)) + 1;
+	}
+	else {
+		if (entry->is_static) {
+			width = ((entry->range_end - entry->range_start + 1) * entry->width) + 1;
+		}
+		else {
+			width = 1;
+		}
+	}
+
 	char static_or_dynamic[10];
 	sprintf(static_or_dynamic, (entry->is_static) ? "static" : "dynamic");
 
 	if (entry == NULL) return;
 	char rstart[20];
 	if (entry->range_start == -1) {
-		common_id_entry *rentry = entry->rstart_entry;
-		if (rentry != NULL) {
-			if (rentry->is_array)
-				sprintf(rstart, "%s", rentry->entry.arr_entry->lexeme);
-			else
-				sprintf(rstart, "%s", rentry->entry.var_entry->lexeme);
+		char *rlex = entry->rstart_lexeme;
+		if (rlex != NULL) {
+			sprintf(rstart, "%s", rlex);
 		}
+		else strcpy(rstart, "-");
 	}
 	else
 		sprintf(rstart, "%d", entry->range_start);
 
 	char rend[20];
 	if (entry->range_end == -1) {
-		common_id_entry *rentry = entry->rend_entry;
-		if (rentry != NULL) {
-			if (rentry->is_array)
-				sprintf(rend, "%s", rentry->entry.arr_entry->lexeme);
-			else
-				sprintf(rend, "%s", rentry->entry.var_entry->lexeme);
+		char *rlex = entry->rend_lexeme;
+		if (rlex != NULL) {
+			sprintf(rend, "%s", rlex);
 		}
+		else strcpy(rend, "-");
 	}
 	else
 		sprintf(rend, "%d", entry->range_end);
@@ -472,13 +532,13 @@ void print_arr_entry (arr_id_entry *entry, scope_node *curr_scope, int level) {
 	sprintf(range, "[%s, %s]", rstart, rend);
 
 	if (array_only_flag) {
-		printf("%-10s| %-15s| %-10s| %-15s| %-15s| %-10s\n\n",
+		printf("%-15s| %-15s| %-15s| %-15s| %-15s| %-15s\n",
 			curr_scope->func->name, scope_lines, entry->lexeme, static_or_dynamic,
 			range, type_to_str(entry->type));
 	}
 	else {
-		printf("%-10s| %-10s| %-15s| %-10d| %-10s| %-15s| %-15s| %-10s| %-10d| %-10d\n\n",
-			entry->lexeme, curr_scope->func->name, scope_lines, entry->width, "yes", static_or_dynamic,
+		printf("%-15s| %-15s| %-15s| %-10d| %-10s| %-15s| %-15s| %-10s| %-10d| %-10d\n",
+			entry->lexeme, curr_scope->func->name, scope_lines, width, "yes", static_or_dynamic,
 			range, type_to_str(entry->type), entry->offset, level);
 
 	}
@@ -495,7 +555,7 @@ void print_scope (scope_node *curr_scope, int level) {
 
 	hm_node *arr_list = get_all_hm_nodes(curr_scope->arr_st);
 	while (arr_list != NULL) {
-		print_arr_entry(arr_list->data, curr_scope, level);
+		print_arr_entry(arr_list->data, curr_scope, level, false);
 		arr_list = arr_list->next;
 	}
 
@@ -511,7 +571,7 @@ void print_param_list (linked_list *plist, scope_node *curr_scope) {
 	while (phead) {
 		param_node *pnode = (param_node *) phead->data;
 		if (pnode->is_array) {
-			print_arr_entry(pnode->param.arr_entry, curr_scope, 0);
+			print_arr_entry(pnode->param.arr_entry, curr_scope, 0, true);
 		}
 		else if (!array_only_flag) {
 			print_var_entry(pnode->param.var_entry, curr_scope, 0);
@@ -525,18 +585,18 @@ void print_symbol_table (hash_map *st) {
 	printf("\n********* SYMBOL TABLE *********\n\n");
 
 	if (array_only_flag) {
-		printf("%-10s| %-15s| %-10s| %-15s| %-15s| %-10s\n",
+		printf("%-15s| %-15s| %-15s| %-15s| %-15s| %-15s\n",
 			"Scope", "scope lines", "Var name", "static/dynamic", "range", "type");
-		printf("%-10s| %-15s| %-10s| %-15s| %-15s| %-10s\n",
-			"--------", "--------", "--------", "--------", "--------", "--------");
+		printf("%-15s| %-15s| %-15s| %-15s| %-15s| %-15s\n",
+			"========", "========", "========", "========", "========", "========");
 	}
 	else {
-		printf("%-10s| %-10s| %-15s| %-10s| %-10s| %-15s| %-15s| %-10s| %-10s| %-10s\n",
+		printf("%-15s| %-15s| %-15s| %-10s| %-10s| %-15s| %-15s| %-10s| %-10s| %-10s\n",
 			"Var name", "Scope", "scope lines", "width", "is array", "static/dynamic", "range",
 			"type", "offset", "nesting level");
-		printf("%-10s| %-10s| %-15s| %-10s| %-10s| %-15s| %-15s| %-10s| %-10s| %-10s\n",
-			"--------", "--------", "--------", "--------", "--------", "--------", "--------",
-			"--------", "--------", "--------");
+		printf("%-15s| %-15s| %-15s| %-10s| %-10s| %-15s| %-15s| %-10s| %-10s| %-10s\n",
+			"========", "========", "========", "========", "========", "========", "========",
+			"========", "========", "========");
 	}
 
 
@@ -560,7 +620,7 @@ void print_symbol_table (hash_map *st) {
 void print_ar_size (hash_map *st) {
 	printf("\n********* ACTIVATION RECORD SIZE *********\n\n");
 	printf("%-15s| %-10s\n", "Module", "Size");
-	printf("%-15s| %-10s\n", "--------", "--------");
+	printf("%-15s| %-10s\n", "========", "========");
 
 	hm_node *module_list = get_all_hm_nodes(st);
 	while (module_list != NULL) {

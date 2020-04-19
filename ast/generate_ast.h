@@ -5,7 +5,7 @@
 #include "../utils/nonterminal_name.h"
 #include "../symbol_table/symbol_table_def.h"
 
-void print_ast_subtree(tree_node *, int);
+void print_ast_subtree(tree_node *, int, char *);
 
 #ifndef GENERATE_AST_H
 #define GENERATE_AST_H

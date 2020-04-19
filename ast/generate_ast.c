@@ -1639,8 +1639,13 @@ tree_node *apply_ast_rules(tree_node *ptn, tree_node *astn)
         {
             ast_node *n = make_ast_node(default_nt, false);
             set_data(astn, (void *)n);
+
+			lexical_token *def_ltk = ((pt_leaf *)get_data(get_child(ptn, 0)))->lt;
+            ast_leaf *def = make_ast_leaf(DEFAULT, true, def_ltk);
+
+            add_child(astn, (void *)def);
             add_child(astn, NULL);
-            apply_ast_rules(get_child(ptn, 2), get_child(astn, 0));
+            apply_ast_rules(get_child(ptn, 2), get_child(astn, 1));
         }
         free(rule->rhs);
 

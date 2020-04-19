@@ -37,8 +37,10 @@ typedef struct ___ARRAY_ST_ENTRY___ {
 	id_type type;
 	int range_start;
 	int range_end;
-	common_id_entry *rstart_entry;
-	common_id_entry *rend_entry;
+	//common_id_entry *rstart_entry;
+	//common_id_entry *rend_entry;
+	char *rstart_lexeme;
+	char *rend_lexeme;
 	int width; // for arrays, width is the width of single elem
 	int offset; // TODO: after dynamic arrays are discussed
 	bool is_static;
@@ -58,12 +60,13 @@ struct ___SCOPE_NODE___ {
 	var_id_entry *loop_var_entry;
 	int start_line;
 	int end_line;
+	linked_list *while_vars; // elements of param_node used
 };
 
 struct ___FUNC_ST_ENTRY___ {
 	char name[MAX_SYMBOL_LEN];
-	linked_list* input_param_list;
-	linked_list* output_param_list;
+	linked_list* input_param_list; // elements of param_node used
+	linked_list* output_param_list; // elements of param_node used
 	scope_node* local_scope;
 	bool is_declared;
 	bool is_defined;
@@ -80,12 +83,13 @@ typedef union ___ID_ST_ENTRY___ {
 typedef struct ___PARAM_NODE___ {
 	bool is_array;
 	id_entry param;
-	bool is_assigned; // for output params
+	bool is_assigned; // for output params & while loop expr vars
 } param_node;
 
 struct ___COMMON_ID_ENTRY___ {
 	bool is_array;
 	id_entry entry;
+	bool is_param;
 };
 
 typedef enum {
@@ -94,4 +98,6 @@ typedef enum {
 	for_assign
 } reason_flag;
 
+extern bool is_while_expr;
+extern scope_node *while_scope;
 #endif

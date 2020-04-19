@@ -173,7 +173,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         retract(l->fh, 1);
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = RNUM;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme) - 1] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -182,7 +185,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 12:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = SEMICOL;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -192,7 +198,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         retract(l->fh, 1);
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = LT;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme) - 1] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -201,7 +210,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 15:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = LE;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -219,7 +231,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 17:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = MINUS;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -228,7 +243,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 18:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = SQBO;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -237,7 +255,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 19:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = SQBC;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -246,7 +267,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 20:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = BO;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -255,7 +279,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 21:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = BC;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -264,7 +291,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 22:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = PLUS;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -273,7 +303,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 24:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = RANGEOP;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -282,7 +315,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 26:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = ASSIGNOP;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -292,7 +328,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         retract(l->fh, 1);
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = COLON;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme) - 1] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -301,7 +340,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 29:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = EQ;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -310,7 +352,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 31:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = NE;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -319,7 +364,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 32:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = DIV;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -328,7 +376,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 34:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = GE;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -347,7 +398,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         retract(l->fh, 1);
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = GT;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme) - 1] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -356,7 +410,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 37:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = COMMA;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -366,7 +423,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         retract(l->fh, 1);
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = MUL;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme) - 1] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -378,7 +438,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 43:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = DRIVERDEF;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -388,7 +451,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         retract(l->fh, 1);
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = DEF;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme) - 1] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -397,7 +463,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
     case 45:
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = DRIVERENDDEF;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme)] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
@@ -407,7 +476,10 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         retract(l->fh, 1);
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = ENDDEF;
-        ltk->lexeme = NULL;
+        lexeme[strlen(lexeme) - 1] = '\0';
+        ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
+        strcpy(ltk->lexeme, lexeme);
+        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
         ltk->nv.int_val = 0;
