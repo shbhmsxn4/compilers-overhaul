@@ -42,6 +42,8 @@ void *ll_remove_at(linked_list *ll, int idx);
 
 void *ll_get(linked_list *ll, int idx);
 
+int ll_num_nodes(linked_list *ll);
+
 /*
 
 destroy linked list

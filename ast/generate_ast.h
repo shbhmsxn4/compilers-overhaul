@@ -25,7 +25,8 @@ struct ____AST_NODE____
     bool is_leaf;
     gm_unit label; // grammar symbol related info
     linked_list *ll;
-	id_type type;
+    id_type type;
+    code *c;
 };
 
 typedef struct ____AST_LEAF____ ast_leaf;
@@ -35,7 +36,8 @@ struct ____AST_LEAF____
     bool is_leaf;
     gm_unit label; // grammar symbol related info
     lexical_token *ltk;
-	id_type type;
+    id_type type;
+    code *c;
 };
 
 tree *generate_ast(tree *pt);

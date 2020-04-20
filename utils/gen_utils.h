@@ -17,4 +17,6 @@ void assert(bool condition, char *error_string);
 
 bool is_whitespace(char a);
 
+char *itoa(int, char *, int);
+
 #endif

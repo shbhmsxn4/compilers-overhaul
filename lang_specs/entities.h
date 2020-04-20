@@ -236,4 +236,13 @@ struct ____PARSE_TREE_LEAF____
 
 typedef struct ____PARSE_TREE_LEAF____ pt_leaf;
 
+struct ____CODE____
+{
+	int num_str;
+	int max_str;
+	char **str;
+};
+
+typedef struct ____CODE____ code;
+
 #endif

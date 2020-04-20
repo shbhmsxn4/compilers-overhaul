@@ -29,3 +29,9 @@ bool is_whitespace(char a)
         return true;
     return false;
 }
+
+char *itoa(int value, char *str, int base)
+{
+    sprintf(str, "%d", value);
+    return str;
+}

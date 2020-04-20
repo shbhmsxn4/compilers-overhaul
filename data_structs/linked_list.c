@@ -17,6 +17,11 @@ linked_list *create_linked_list()
     return ll;
 }
 
+int ll_num_nodes(linked_list *ll)
+{
+    return ll->num_nodes;
+}
+
 void ll_add_at(linked_list *ll, void *data, int idx)
 {
     assert(idx <= ll->num_nodes && idx >= 0, "linked list insertion index valid");
