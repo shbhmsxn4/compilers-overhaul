@@ -320,6 +320,8 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 n2 = get_child(n, 0);
                 ldata = (ast_leaf *)get_data(n2);
                 func_entry *f_temp_module = fetch_from_hash_map(st, ldata->ltk->lexeme);
+                append_code(data->c, ldata->ltk->lexeme);
+                append_code(data->c, ":\n");
                 append_code(data->c, "mov ebp, esp\n");
                 append_code(data->c, "add ebp, ");
                 append_code(data->c, itoa(SIZE_OF_CALL, (char *)calloc(MAX_INT_LEN, sizeof(char)), 10));
