@@ -26,6 +26,7 @@
 
 bool display_err_flag = true;
 bool array_only_flag = false;
+bool compile_err = false;
 
 int main()
 {
@@ -42,7 +43,7 @@ int main()
     gm_first *fi = get_first(gm);
     gm_follow *fo = get_follow(gm, fi);
     parse_table *pt = generate_parse_table(gm, fi, fo);
-    tree *ptree = parse(l, gm, pt);
+    tree *ptree = parse(l, gm, pt, fo);
 
     /*print_parse_tree(ptree);*/
 

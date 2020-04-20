@@ -32,16 +32,15 @@
 
 bool display_err_flag = true;
 bool array_only_flag = false;
+bool compile_err = false;
 
 int main (int argc, char *argv[]) {
 
-	/*
-	 *if (argc != 3 || (argc == 3 && strcmp(argv[0], "./stage1exe") != 0)) {
-	 *    printf("Incorrect execution format. Expected:-\n");
-	 *    printf("./stage1exe testcase.txt parsetreeOutFile.txt\n");
-	 *    return 0;
-	 *}
-	 */
+	if (argc != 3 || (argc == 3 && strcmp(argv[0], "./compiler") != 0)) {
+		printf("Incorrect execution format. Expected:-\n");
+		printf("./compiler testcase.txt code.asm\n");
+		return 0;
+	}
 
 	printf("\n**************** ERPLAG COMPILER - PHASE 2 ****************\n");
 	/*
@@ -63,10 +62,12 @@ int main (int argc, char *argv[]) {
 
 	/*char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/revisedtests/t5.txt";*/
 	/*char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/revisedtests/Sample_Symbol_table.txt";*/
-	char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/test.txt";
-	char dfa_specs_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/lang_specs/dfa_specs";
-	char grammar_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/lang_specs/grammar";
+	/*char test_file[150] = "/home/kunal/Desktop/github/compilers-overhaul/test.txt";*/
+	char test_file[150];
+	char dfa_specs_file[150] = "./lang_specs/dfa_specs";
+	char grammar_file[150] = "./lang_specs/grammar";
 
+	strcpy(test_file, argv[1]);
 	while (1) {
 		printf("\n");
 		printf("Options:-\n");
@@ -128,7 +129,7 @@ int main (int argc, char *argv[]) {
 				fi = get_first(gm);
 				fo = get_follow(gm, fi);
 				pt = generate_parse_table(gm, fi, fo);
-				ptree = parse(l, gm, pt);
+				ptree = parse(l, gm, pt, fo);
 
 				printf("Parse tree traversal order:-\n");
 				printf("INORDER => Left most child -> Current node -> Remaining children\n\n\n");
@@ -149,7 +150,7 @@ int main (int argc, char *argv[]) {
 				fi = get_first(gm);
 				fo = get_follow(gm, fi);
 				pt = generate_parse_table(gm, fi, fo);
-				ptree = parse(l, gm, pt);
+				ptree = parse(l, gm, pt, fo);
 				ast_tree = generate_ast(ptree);
 
 				printf("AST traversal order:-\n");
@@ -174,7 +175,7 @@ int main (int argc, char *argv[]) {
 				fi = get_first(gm);
 				fo = get_follow(gm, fi);
 				pt = generate_parse_table(gm, fi, fo);
-				ptree = parse(l, gm, pt);
+				ptree = parse(l, gm, pt, fo);
 
 				ast_tree = generate_ast(ptree);
 
@@ -199,6 +200,7 @@ int main (int argc, char *argv[]) {
 
 				display_err_flag = false;
 				array_only_flag = false;
+				compile_err = false;
 
 				thm = create_terminal_hash_map(15);
 				nthm = create_nonterminal_hash_map(15);
@@ -210,7 +212,7 @@ int main (int argc, char *argv[]) {
 				fi = get_first(gm);
 				fo = get_follow(gm, fi);
 				pt = generate_parse_table(gm, fi, fo);
-				ptree = parse(l, gm, pt);
+				ptree = parse(l, gm, pt, fo);
 
 				ast_tree = generate_ast(ptree);
 				/*print_ast_tree(ast_tree);*/
@@ -225,6 +227,7 @@ int main (int argc, char *argv[]) {
 
 				display_err_flag = false;
 				array_only_flag = false;
+				compile_err = false;
 
 				thm = create_terminal_hash_map(15);
 				nthm = create_nonterminal_hash_map(15);
@@ -236,12 +239,13 @@ int main (int argc, char *argv[]) {
 				fi = get_first(gm);
 				fo = get_follow(gm, fi);
 				pt = generate_parse_table(gm, fi, fo);
-				ptree = parse(l, gm, pt);
+				ptree = parse(l, gm, pt, fo);
 
 				ast_tree = generate_ast(ptree);
 				/*print_ast_tree(ast_tree);*/
 				
 				main_st = call_semantic_analyzer(ast_tree);
+				printf("\nActivation record size considered as sum of widths of local variables only (NOT paramters).\n");
 				print_ar_size(main_st);
 
 				break;
@@ -251,6 +255,7 @@ int main (int argc, char *argv[]) {
 
 				display_err_flag = false;
 				array_only_flag = true;
+				compile_err = false;
 
 				thm = create_terminal_hash_map(15);
 				nthm = create_nonterminal_hash_map(15);
@@ -262,7 +267,7 @@ int main (int argc, char *argv[]) {
 				fi = get_first(gm);
 				fo = get_follow(gm, fi);
 				pt = generate_parse_table(gm, fi, fo);
-				ptree = parse(l, gm, pt);
+				ptree = parse(l, gm, pt, fo);
 
 				ast_tree = generate_ast(ptree);
 				/*print_ast_tree(ast_tree);*/
@@ -282,6 +287,7 @@ int main (int argc, char *argv[]) {
 
 				display_err_flag = true;
 				array_only_flag = false;
+				compile_err = false;
 
 				thm = create_terminal_hash_map(15);
 				nthm = create_nonterminal_hash_map(15);
@@ -293,7 +299,7 @@ int main (int argc, char *argv[]) {
 				fi = get_first(gm);
 				fo = get_follow(gm, fi);
 				pt = generate_parse_table(gm, fi, fo);
-				ptree = parse(l, gm, pt);
+				ptree = parse(l, gm, pt, fo);
 
 				// TODO: if lexical/syntactical errs, don't procede
 
@@ -301,6 +307,10 @@ int main (int argc, char *argv[]) {
 				/*print_ast_tree(ast_tree);*/
 				
 				main_st = call_semantic_analyzer(ast_tree);
+
+				if (!compile_err) {
+					printf("\n\nCode compiles successfully without errors.\n\n");
+				}
 
 				printf("\n\n");
 				end_time = clock();

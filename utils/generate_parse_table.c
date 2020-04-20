@@ -1,3 +1,11 @@
+/*
+Group- 35
+2017A7PS0082P		Laksh Singla
+2017A7PS0148P 		Kunal Mohta
+2017A7PS0191P 		Suyash Raj
+2017A7PS0302P 		Shubham Saxena
+*/
+
 #include "generate_parse_table.h"
 
 parse_table *generate_parse_table(grammar *gm, gm_first *fi, gm_follow *fo)

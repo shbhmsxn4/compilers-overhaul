@@ -1,3 +1,11 @@
+/*
+Group- 35
+2017A7PS0082P		Laksh Singla
+2017A7PS0148P 		Kunal Mohta
+2017A7PS0191P 		Suyash Raj
+2017A7PS0302P 		Shubham Saxena
+*/
+
 #include "lexer.h"
 
 lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_num, int char_num);

@@ -1,3 +1,11 @@
+/*
+Group- 35
+2017A7PS0082P		Laksh Singla
+2017A7PS0148P 		Kunal Mohta
+2017A7PS0191P 		Suyash Raj
+2017A7PS0302P 		Shubham Saxena
+*/
+
 #include "../symbol_table/symbol_table.h"
 #include "../utils/terminal_name.h"
 
@@ -23,7 +31,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		first_pass(main_st, get_child(astn, 1), curr_scope);
 
 		// driver module
-		func_entry *st_entry = (func_entry *) fetch_from_hash_map(main_st, "program");
+		func_entry *st_entry = (func_entry *) fetch_from_hash_map(main_st, "driver");
 		assert(st_entry != NULL, "default entry for driver module not found");
 		first_pass(main_st, get_child(astn, 2), st_entry->local_scope);
 
@@ -83,7 +91,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		else {
 			if (f_st_entry->is_defined) {
 				char err_msg[100];
-				sprintf(err_msg, "'%s' module re-defined", func_name);
+				sprintf(err_msg, "'%s' module re-defined (overloading not allowed)", func_name);
 				display_err("Semantic", module_id_data->ltk->line_num, err_msg);
 				return; // don't process the module
 			}
@@ -116,13 +124,16 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 				
 				tree_node *range_arrays = get_child(param_type, 0);
 				int *range_indices = get_static_range(range_arrays);
-				// TODO: module params dont have dynamic ranges?
+				
+				/*printf("here %s\n", param_id->ltk->lexeme);*/
+				char **range_lexemes = get_dynamic_range(range_arrays, curr_scope);
+				/*char **range_lexemes = NULL;*/
 				/*common_id_entry **range_entries = get_dynamic_range(range_arrays, NULL);*/
 
 				fparam->param.arr_entry = create_arr_entry(
 						param_id->ltk->lexeme,
 						get_type_from_node(get_child(param_type, 1)),
-						range_indices, NULL,
+						range_indices, range_lexemes,
 						-1, -1);
 
 				arr_assign_offset(fparam->param.arr_entry, f_st_entry, true);
@@ -136,6 +147,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			ll_append(fip_ll, fparam);
 		}
 		f_st_entry->input_param_list = fip_ll;
+		f_st_entry->input_params_width = f_st_entry->width;
 
 		// MODULE OUTPUT PARAM LIST
 		tree_node* module_oplist = get_child(astn, 2);
@@ -164,6 +176,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			ll_append(fop_ll, fparam);
 		}
 		f_st_entry->output_param_list = fop_ll;
+		f_st_entry->output_params_width = f_st_entry->width - f_st_entry->input_params_width;
 
 		// NOTE:
 		f_st_entry->width = 0; // resetting width for local params
@@ -174,22 +187,25 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		first_pass(main_st, get_child(astn, 3), f_st_entry->local_scope);
 
 		// check if all output params have been assigned
-		for (int i = 0; i < f_st_entry->output_param_list->num_nodes; i++) {
-			param_node *pnode = (param_node *) ll_get(fop_ll, i);
+/*
+ *        for (int i = 0; i < f_st_entry->output_param_list->num_nodes; i++) {
+ *            param_node *pnode = (param_node *) ll_get(fop_ll, i);
+ *
+ *            if (!pnode->is_assigned) {
+ *                char *pname;
+ *                if (pnode->is_array) {
+ *                    pname = pnode->param.arr_entry->lexeme;
+ *                }
+ *                else {
+ *                    pname = pnode->param.var_entry->lexeme;
+ *                }
+ *                char err_msg[100];
+ *                sprintf(err_msg, "output param '%s' is not assigned in module '%s'", pname, func_name);
+ *                display_err("Semantic", f_st_entry->local_scope->end_line, err_msg);
+ *            }
+ *        }
+ */
 
-			if (!pnode->is_assigned) {
-				char *pname;
-				if (pnode->is_array) {
-					pname = pnode->param.arr_entry->lexeme;
-				}
-				else {
-					pname = pnode->param.var_entry->lexeme;
-				}
-				char err_msg[100];
-				sprintf(err_msg, "output param '%s' is not assigned in module '%s'", pname, func_name);
-				display_err("Semantic", f_st_entry->local_scope->end_line, err_msg);
-			}
-		}
 	}
 
 	if (ast_nt == moduleDef) {
@@ -634,11 +650,28 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func, start_line_num, end_line_num);
 
 		// insert loop var in scope
-		var_id_entry *entry = create_var_entry(id_data->ltk->lexeme, integer, -1, -1);
-		add_to_hash_map(new_scope->var_id_st, id_data->ltk->lexeme, entry);
-		new_scope->loop_var_entry = entry;
-
-		var_assign_offset(entry, curr_scope->func);
+/*
+ *        var_id_entry *entry = create_var_entry(id_data->ltk->lexeme, integer, -1, -1);
+ *        add_to_hash_map(new_scope->var_id_st, id_data->ltk->lexeme, entry);
+ *        new_scope->loop_var_entry = entry;
+ *
+ *        var_assign_offset(entry, curr_scope->func);
+ */
+		common_id_entry *centry = type_check_var(id_data, NULL, curr_scope, for_use);
+		if (centry != NULL) {
+			char err_msg[100];
+			if (centry->is_array) {
+				sprintf(err_msg, "for loop variable '%s' should be integer, found array", id_data->ltk->lexeme);
+				display_err("Semantic", id_data->ltk->line_num, err_msg);
+			}
+			else if (centry->entry.var_entry->type != integer) {
+				sprintf(err_msg, "for loop variable '%s' should be integer, found %s", id_data->ltk->lexeme, type_to_str(centry->entry.var_entry->type));
+				display_err("Semantic", id_data->ltk->line_num, err_msg);
+			}
+			else {
+				new_scope->loop_var_entry = centry->entry.var_entry;
+			}
+		}
 
 		// using start line num to generate key for hash map
 		char *str_line_num = (char *) malloc(25 * sizeof(char));
@@ -692,21 +725,23 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		for (int j = 0; j < stmts_ll->num_nodes; j++)
 			first_pass(main_st, ll_get(stmts_ll, j), new_scope);
 
-		bool is_while_valid = false;
-
-		for (int j = 0; j < new_scope->while_vars->num_nodes; j++) {
-			param_node *p = ll_get(new_scope->while_vars, j);
-			if (p->is_assigned) {
-				is_while_valid = true;
-				break;
-			}
-		}
-
-		if (!is_while_valid) {
-			char err_msg[100];
-			sprintf(err_msg, "atleast one conditional variable of while loop should be assigned in its body");
-			display_err("Type", end_line_num, err_msg);
-		}
+/*
+ *        bool is_while_valid = false;
+ *
+ *        for (int j = 0; j < new_scope->while_vars->num_nodes; j++) {
+ *            param_node *p = ll_get(new_scope->while_vars, j);
+ *            if (p->is_assigned) {
+ *                is_while_valid = true;
+ *                break;
+ *            }
+ *        }
+ *
+ *        if (!is_while_valid) {
+ *            char err_msg[100];
+ *            sprintf(err_msg, "atleast one conditional variable of while loop should be assigned in its body");
+ *            display_err("Type", end_line_num, err_msg);
+ *        }
+ */
 	}
 }
 
@@ -728,7 +763,7 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		second_pass(main_st, get_child(astn, 1), curr_scope);
 
 		// driver module
-		func_entry *st_entry = (func_entry *) fetch_from_hash_map(main_st, "program");
+		func_entry *st_entry = (func_entry *) fetch_from_hash_map(main_st, "driver");
 		assert(st_entry != NULL, "default entry for driver module not found");
 		second_pass(main_st, get_child(astn, 2), st_entry->local_scope);
 
@@ -779,6 +814,11 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 
 		char *func_name = module_id_data->ltk->lexeme;
 		func_entry *f_st_entry = (func_entry *) fetch_from_hash_map(main_st, func_name);
+
+		if (f_st_entry == NULL) return;
+
+		if (f_st_entry->is_defined2) return;
+		f_st_entry->is_defined2 = true;
 /*
  *        if (f_st_entry == NULL) {
  *            f_st_entry = create_func_entry(func_name, false, true, false, -1, -1);
@@ -865,15 +905,32 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		}
 
 		// check if all output params have been assigned
-		/*
-		 *for (int i = 0; i < f_st_entry->output_param_list->num_nodes; i++) {
-		 *    param_node *pnode = (param_node *) ll_get(fop_ll, i);
-		 *    if (!pnode->is_assigned) {
-		 *        printf("output params need to be assigned value\n");
-		 *        // TODO: err unassigned output param
-		 *    }
-		 *}
-		 */
+		for (int i = 0; i < f_st_entry->output_param_list->num_nodes; i++) {
+			param_node *pnode = (param_node *) ll_get(f_st_entry->output_param_list, i);
+
+			if (!pnode->is_assigned) {
+				char *pname;
+				if (pnode->is_array) {
+					pname = pnode->param.arr_entry->lexeme;
+				}
+				else {
+					pname = pnode->param.var_entry->lexeme;
+				}
+				char err_msg[100];
+				sprintf(err_msg, "output param '%s' is not assigned in module '%s'", pname, func_name);
+				display_err("Semantic", f_st_entry->local_scope->end_line, err_msg);
+			}
+				/*
+				 *char *pname;
+				 *if (pnode->is_array) {
+				 *    pname = pnode->param.arr_entry->lexeme;
+				 *}
+				 *else {
+				 *    pname = pnode->param.var_entry->lexeme;
+				 *}
+				 *printf("herere %s\n" , pname);
+				 */
+		}
 	}
 
 	if (ast_nt == moduleDef) {
@@ -1299,7 +1356,7 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 
 	if (ast_nt == while_loop) {
 		ast_leaf *start_data = (ast_leaf *) get_data(get_child(astn, 1));
-		/*ast_leaf *end_data = (ast_leaf *) get_data(get_child(astn, 3));*/
+		ast_leaf *end_data = (ast_leaf *) get_data(get_child(astn, 3));
 		tree_node *aobexpr_node = get_child(astn, 0);
 		tree_node *stmts_node = get_child(astn, 2);
 
@@ -1316,9 +1373,10 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		 */
 
 		// using line_num to get scope
-		int line_num = start_data->ltk->line_num;
+		int start_line_num = start_data->ltk->line_num;
+		int end_line_num = end_data->ltk->line_num;
 		char *str_line_num = (char *) malloc(25 * sizeof(char));
-		sprintf(str_line_num, "%d", line_num);
+		sprintf(str_line_num, "%d", start_line_num);
 		scope_node *new_scope = (scope_node *) fetch_from_hash_map(curr_scope->child_scopes, str_line_num);
 		/*
 		 *scope_node *new_scope = create_new_scope(curr_scope, curr_scope->func);
@@ -1332,6 +1390,22 @@ void second_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 		linked_list *stmts_ll = ((ast_node *) get_data(stmts_node))->ll;
 		for (int j = 0; j < stmts_ll->num_nodes; j++)
 			second_pass(main_st, ll_get(stmts_ll, j), new_scope);
+
+		bool is_while_valid = false;
+
+		for (int j = 0; j < new_scope->while_vars->num_nodes; j++) {
+			param_node *p = ll_get(new_scope->while_vars, j);
+			if (p->is_assigned) {
+				is_while_valid = true;
+				break;
+			}
+		}
+
+		if (!is_while_valid) {
+			char err_msg[100];
+			sprintf(err_msg, "atleast one conditional variable of while loop should be assigned in its body");
+			display_err("Type", end_line_num, err_msg);
+		}
 	}
 }
 
