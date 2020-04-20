@@ -403,42 +403,29 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 }
                 else
                 {
-                    if (ldata->ltk->t == TRUE)
+                    if (ldata->label.gms.t == TRUE)
                     {
                         append_code(data->c, "push truestr\n");
                         append_code(data->c, "call printf\n");
                         append_code(data->c, "add esp, 4\n");
                     }
-                    else if (ldata->ltk->t == FALSE)
+                    else if (ldata->label.gms.t == FALSE)
                     {
                         append_code(data->c, "push falsestr\n");
                         append_code(data->c, "call printf\n");
                         append_code(data->c, "add esp, 4\n");
                     }
-                    else if (ldata->ltk->t == NUM)
+                    else if (ldata->label.gms.t == NUM)
                     {
-                        entry = find_id_for(ldata->ltk->lexeme, curr_scope, for_use, ldata->ltk->line_num);
-                        offset = entry->entry.var_entry->offset;
-                        is_param = entry->is_param;
-                        if (is_param)
-                        {
-                            append_code(data->c, "mov edx, [ebp + ");
-                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                            append_code(data->c, "]\n");
-                        }
-                        else
-                        {
-                            append_code(data->c, "mov edx, [esi + ");
-                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                            append_code(data->c, "]\n");
-                        }
-                        append_code(data->c, "mov [inpt], edx\n");
-                        append_code(data->c, "push inpt\n");
-                        append_code(data->c, "push fmtd\n");
+                        append_code(data->c, "mov edx, ");
+                        append_code(data->c, itoa(ldata->ltk->nv.int_val, (char *)calloc(MAX_INT_LEN, sizeof(char)), 10));
+                        append_code(data->c, "\n");
+                        append_code(data->c, "push edx\n");
+                        append_code(data->c, "push dword fmtd\n");
                         append_code(data->c, "call printf\n");
                         append_code(data->c, "add esp, 8\n");
                     }
-                    else if (ldata->ltk->t == RNUM)
+                    else if (ldata->label.gms.t == RNUM)
                     {
                         entry = find_id_for(ldata->ltk->lexeme, curr_scope, for_use, ldata->ltk->line_num);
                         offset = entry->entry.var_entry->offset;
