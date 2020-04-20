@@ -82,6 +82,8 @@ struct ___FUNC_ST_ENTRY___ {
 	bool is_defined2; // only for second pass
 	int offset;
 	int width;
+	int input_params_width;
+	int output_params_width;
 };
 
 typedef union ___ID_ST_ENTRY___ {

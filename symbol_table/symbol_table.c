@@ -186,6 +186,8 @@ func_entry *create_func_entry (char *name, bool is_declared, bool is_defined, bo
 	entry->is_defined2 = false;
 	entry->offset = offset;
 	entry->width = width;
+	entry->input_params_width = 0;
+	entry->output_params_width = 0;
 	return entry;
 }
 

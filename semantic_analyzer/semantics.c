@@ -147,6 +147,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			ll_append(fip_ll, fparam);
 		}
 		f_st_entry->input_param_list = fip_ll;
+		f_st_entry->input_params_width = f_st_entry->width;
 
 		// MODULE OUTPUT PARAM LIST
 		tree_node* module_oplist = get_child(astn, 2);
@@ -175,6 +176,7 @@ void first_pass (hash_map *main_st, tree_node *astn, scope_node *curr_scope) {
 			ll_append(fop_ll, fparam);
 		}
 		f_st_entry->output_param_list = fop_ll;
+		f_st_entry->output_params_width = f_st_entry->width - f_st_entry->input_params_width;
 
 		// NOTE:
 		f_st_entry->width = 0; // resetting width for local params
