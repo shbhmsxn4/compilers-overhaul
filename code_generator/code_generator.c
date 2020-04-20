@@ -1355,7 +1355,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
 
                 n2 = get_child(n, 3);
                 data2 = (ast_node *)get_data(n2);
-                generate_code(n2, st, (scope_node *)fetch_from_hash_map(curr_scope->child_scopes, itoa(((ast_leaf *)get_child(n, 2))->ltk->line_num, (char *)calloc(MAX_LINE_NUM_DIGS, sizeof(char)), 10)), lg);
+                generate_code(n2, st, (scope_node *)fetch_from_hash_map(curr_scope->child_scopes, itoa(((ast_leaf *)get_data(get_child(n, 2)))->ltk->line_num, (char *)calloc(MAX_LINE_NUM_DIGS, sizeof(char)), 10)), lg);
                 stitch_code_append(n, n2);
 
                 append_code(data->c, "mov cx, ");
@@ -1425,7 +1425,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
 
                 n2 = get_child(n, 2);
                 data2 = (ast_node *)get_data(n2);
-                generate_code(n2, st, (scope_node *)fetch_from_hash_map(curr_scope->child_scopes, itoa(((ast_leaf *)get_child(n, 1))->ltk->line_num, (char *)calloc(MAX_LINE_NUM_DIGS, sizeof(char)), 10)), lg);
+                generate_code(n2, st, (scope_node *)fetch_from_hash_map(curr_scope->child_scopes, itoa(((ast_leaf *)get_data(get_child(n, 1)))->ltk->line_num, (char *)calloc(MAX_LINE_NUM_DIGS, sizeof(char)), 10)), lg);
                 stitch_code_append(n, n2);
 
                 append_code(data->c, "jmp ");
@@ -1677,7 +1677,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
 
                     n2 = ll_get(data2->ll, i);
                     n2 = get_child(n2, 1);
-                    generate_code(n2, st, (scope_node *)fetch_from_hash_map(curr_scope->child_scopes, itoa(((ast_leaf *)get_child(n, 1))->ltk->line_num, (char *)calloc(MAX_LINE_NUM_DIGS, sizeof(char)), 10)), lg);
+                    generate_code(n2, st, (scope_node *)fetch_from_hash_map(curr_scope->child_scopes, itoa(((ast_leaf *)get_data(get_child(n, 1)))->ltk->line_num, (char *)calloc(MAX_LINE_NUM_DIGS, sizeof(char)), 10)), lg);
                     stitch_code_append(n, n2);
 
                     append_code(data->c, "jmp ");
@@ -1692,7 +1692,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 {
                     n2 = get_child(n, 3);
                     n2 = get_child(n2, 1);
-                    generate_code(n2, st, (scope_node *)fetch_from_hash_map(curr_scope->child_scopes, itoa(((ast_leaf *)get_child(n, 1))->ltk->line_num, (char *)calloc(MAX_LINE_NUM_DIGS, sizeof(char)), 10)), lg);
+                    generate_code(n2, st, (scope_node *)fetch_from_hash_map(curr_scope->child_scopes, itoa(((ast_leaf *)get_data(get_child(n, 1)))->ltk->line_num, (char *)calloc(MAX_LINE_NUM_DIGS, sizeof(char)), 10)), lg);
                     stitch_code_append(n, n2);
 
                     append_code(data->c, label_temp2);
