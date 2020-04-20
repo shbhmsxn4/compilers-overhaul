@@ -87,10 +87,13 @@ tree *parse(lexer *l, grammar *gm, parse_table *pt, gm_follow *fo)
 
     do
     {
-
-        if (next_lexer_token->line_num == 0)
+    checkLexicalError:
+        if (next_lexer_token->char_num == 0)
         {
             // lexical error has occurred
+            printf("Lexical error at %d : %c", next_lexer_token->line_num, next_lexer_token->lexeme[0]);
+            next_lexer_token = get_next_token(l);
+            goto checkLexicalError;
         }
         next_stack_unit = (gm_unit *)peek(parser_stack);
 
@@ -127,13 +130,14 @@ tree *parse(lexer *l, grammar *gm, parse_table *pt, gm_follow *fo)
             else
             {
                 // syntactical error has occurred
-				while (next_stack_unit->is_terminal) {
-					printf("Syntax error at line %d - lexeme %s\n", next_lexer_token->line_num, next_lexer_token->lexeme);
-					temp = (gm_unit *)pop(parser_stack);
-					free(temp);
-					temp = NULL;
-					next_stack_unit = (gm_unit *)peek(parser_stack);
-				}
+                while (next_stack_unit->is_terminal)
+                {
+                    printf("Syntax error at line %d - lexeme %s\n", next_lexer_token->line_num, next_lexer_token->lexeme);
+                    temp = (gm_unit *)pop(parser_stack);
+                    free(temp);
+                    temp = NULL;
+                    next_stack_unit = (gm_unit *)peek(parser_stack);
+                }
             }
         }
         else
@@ -172,22 +176,25 @@ tree *parse(lexer *l, grammar *gm, parse_table *pt, gm_follow *fo)
             else
             {
                 // syntactical error has occurred
-				
-				while (next_lexer_token) {
-					bool is_in_follow = false;
-					for (int k = 0; k < fo->follow_set[next_stack_unit->gms.nt].num_terminals; k++)
-					{
-						if (next_lexer_token->t == fo->follow_set[next_stack_unit->gms.nt].follow[k]) {
-							is_in_follow = true;
-							break;
-						}
-					}
 
-					if (!is_in_follow) break;
-					printf("Syntax error at line %d - lexeme %s\n", next_lexer_token->line_num, next_lexer_token->lexeme);
-					temp = NULL;
-					next_lexer_token = get_next_token(l);
-				}
+                while (next_lexer_token)
+                {
+                    bool is_in_follow = false;
+                    for (int k = 0; k < fo->follow_set[next_stack_unit->gms.nt].num_terminals; k++)
+                    {
+                        if (next_lexer_token->t == fo->follow_set[next_stack_unit->gms.nt].follow[k])
+                        {
+                            is_in_follow = true;
+                            break;
+                        }
+                    }
+
+                    if (!is_in_follow)
+                        break;
+                    printf("Syntax error at line %d - lexeme %s\n", next_lexer_token->line_num, next_lexer_token->lexeme);
+                    temp = NULL;
+                    next_lexer_token = get_next_token(l);
+                }
             }
         }
 

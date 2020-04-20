@@ -90,7 +90,7 @@ lexical_token *get_next_token(lexer *l)
             lexical_token *ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
             ltk->lexeme = (char *)calloc(1, sizeof(char));
             ltk->lexeme[0] = lexeme[0];
-            ltk->line_num = 0;
+            ltk->line_num = line_num;
             ltk->char_num = 0;
 
             // retract all but one characters read
