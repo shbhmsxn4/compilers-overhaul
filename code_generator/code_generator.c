@@ -1277,7 +1277,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 if (get_child(n, 3) != NULL)
                 {
                     n2 = get_child(n, 3);
-                    n2 = get_child(n2, 0);
+                    n2 = get_child(n2, 1);
                     generate_code(n2, st, curr_scope, lg);
                     stitch_code_append(n, n2);
 
