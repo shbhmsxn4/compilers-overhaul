@@ -2,7 +2,7 @@ run : new_driver.o lexer.o symbol_table.o semantics.o file_handler.o parse_dfa.o
 	gcc new_driver.o lexer.o symbol_table.o semantics.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o -o compiler -lm
 
 debug_exe : driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o symbol_table.o semantics.o code_generator.o output_code.o label_generator.o
-	gcc driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o symbol_table.o semantics.o code_generator.o output_code.o label_generator.o -o debug_exe
+	gcc driver.o lexer.o file_handler.o parse_dfa.o dfa.o stack.o gen_utils.o terminal_name.o nonterminal_name.o terminal_hash_map.o nonterminal_hash_map.o print.o parse_grammar.o grammar.o hash_map.o parse_table.o generate_parse_table.o tree.o parser.o keyword_hash_map.o generate_ast.o linked_list.o symbol_table.o semantics.o code_generator.o output_code.o label_generator.o -o debug_exe -lm
 
 label_generator.o : ./code_generator/label_generator.h ./code_generator/label_generator.c
 	gcc -c ./code_generator/label_generator.c
