@@ -166,7 +166,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
 
         case RNUM:
             ldata->c = create_empty_code();
-            // TODO
+            // TONOTDO
             break;
 
         case TRUE:
@@ -236,7 +236,20 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
             }
             else if (it_temp == array)
             {
-                assert(false, "cannot copy array type as ID into edx");
+                if (is_param)
+                {
+                    append_code(ldata->c, "mov dl, [ebp + ");
+                    append_code(ldata->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                    append_code(ldata->c, "]\n");
+                    append_code(ldata->c, "and edx, 00000011h\n");
+                }
+                else
+                {
+                    append_code(ldata->c, "mov dl, [esi + ");
+                    append_code(ldata->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                    append_code(ldata->c, "]\n");
+                    append_code(ldata->c, "and edx, 00000011h\n");
+                }
             }
             else
             {
@@ -303,8 +316,10 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 append_code(data->c, "pfmtd db \"%d\", 10, 0\n");
                 append_code(data->c, "fmtf db \"%f\", 0\n");
                 append_code(data->c, "fmts db \"%s\", 0\n");
+                append_code(data->c, "four db 4");
                 append_code(data->c, "\n\nsection .bss\n");
                 append_code(data->c, "inpt resd 1\n");
+                append_code(data->c, "arrspace resd 256\n");
 
                 break;
 
@@ -390,7 +405,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         }
                         else if (it_temp == real)
                         {
-                            // TODO passing of float params
+                            // TONOTDO passing of float params
                         }
                         else if (it_temp == boolean)
                         {
@@ -459,7 +474,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         }
                         else if (it_temp == real)
                         {
-                            // TODO float output param
+                            // TONOTDO float output param
                         }
                         else if (it_temp == boolean)
                         {
@@ -542,7 +557,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 }
                 else if (it_temp == real)
                 {
-                    // TODO verify float input strat
+                    // TONOTDO verify float input strat
                     append_code(data->c, "push dword inpt\n");
                     append_code(data->c, "push dword fmtf\n");
                     append_code(data->c, "call scanf\n");
@@ -632,6 +647,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     if (entry->is_array)
                     {
                         // TODO printing of array
+                        it_temp = entry->entry.arr_entry->type;
                     }
                     else
                     {
@@ -645,7 +661,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         }
                         else if (it_temp == real)
                         {
-                            // TODO printing of floats
+                            // TONOTDO printing of floats
                         }
                         else if (it_temp == boolean)
                         {
@@ -703,7 +719,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     }
                     else if (ldata->label.gms.t == RNUM)
                     {
-                        // TODO printing of float literals
+                        // TONOTDO printing of float literals
                     }
                     else
                     {
@@ -723,7 +739,98 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 is_param = entry->is_param;
                 if (entry->is_array)
                 {
-                    // TODO
+                    if (data2->label.gms.nt == lvalueARRStmt)
+                    {
+                        it_temp = entry->entry.arr_entry->type;
+                        append_code(data->c, "push eax\n");
+                        append_code(data->c, "push ebx\n");
+                        // move arr byte addr into ebx
+                        append_code(data->c, "mov ebx, ");
+                        offset = entry->entry.arr_entry->offset;
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                        append_code(data->c, "\n");
+                        // move arr byte into eax
+                        append_code(data->c, "move al, [ebx]\n");
+                        append_code(data->c, "cbw\n");
+                        append_code(data->c, "cwde\n");
+                        append_code(data->c, "mov ebx, eax\n");
+                        // move index into eax
+                        n2 = get_child(n2, 0);
+                        ldata = (ast_leaf *)get_data(n2);
+                        if (ldata->label.gms.t == NUM)
+                        {
+                            append_code(data->c, "mov eax, ");
+                            append_code(data->c, itoa(ldata->ltk->nv.int_val, (char *)calloc(MAX_INT_LEN, sizeof(char)), 10));
+                            append_code(data->c, "\n");
+                        }
+                        else if (ldata->label.gms.t == ID)
+                        {
+                            entry = find_id_for(ldata->ltk->lexeme, curr_scope, for_use, ldata->ltk->line_num);
+                            is_param = entry->is_param;
+                            offset = entry->entry.var_entry->offset;
+                            if (is_param)
+                            {
+                                append_code(data->c, "mov ax, [ebp + ");
+                            }
+                            else
+                            {
+                                append_code(data->c, "mov ax, [esi + ");
+                            }
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                            append_code(data->c, "]\n");
+                            append_code(data->c, "cwde\n");
+                        }
+                        else
+                        {
+                            assert(false, "assignment statement array something went wrong");
+                        }
+                        append_code(data->c, "mul byte four\n");
+                        append_code(data->c, "add eax, ebx\n");
+                        if (it_temp == integer)
+                        {
+                            append_code(data->c, "mov [eax], dx\n");
+                        }
+                        else if (it_temp == real)
+                        {
+                            // TONOTDO
+                        }
+                        else if (it_temp == boolean)
+                        {
+                            append_code(data->c, "mov [eax], dl\n");
+                        }
+                        else
+                        {
+                            assert(false, "assignment array statement things went wrong");
+                        }
+                        append_code(data->c, "pop ebx\n");
+                        append_code(data->c, "pop eax\n");
+                    }
+                    else if (data2->label.gms.nt == lvalueIDStmt)
+                    {
+                        append_code(data->c, "push eax\n");
+                        append_code(data->c, "push ebx\n");
+                        // move arr byte addr into ebx
+                        append_code(data->c, "mov ebx, ");
+                        offset = entry->entry.arr_entry->offset;
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                        append_code(data->c, "\n");
+                        // move arr byte into eax
+                        append_code(data->c, "mov al, [ebx]\n");
+                        append_code(data->c, "cbw\n");
+                        append_code(data->c, "cwde\n");
+                        append_code(data->c, "mul byte four\n");
+                        append_code(data->c, "mov ebx, eax\n");
+                        append_code(data->c, "mov eax, edx\n");
+                        append_code(data->c, "mul byte four\n");
+                        append_code(data->c, "mov edx, [eax]\n");
+                        append_code(data->c, "mov [ebx], edx\n");
+                        append_code(data->c, "pop ebx\n");
+                        append_code(data->c, "pop eax\n");
+                    }
+                    else
+                    {
+                        assert(false, "array assignment has known lvalue stmt");
+                    }
                 }
                 else
                 {
@@ -825,7 +932,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 }
                 else if (it_temp == real)
                 {
-                    // TODO
+                    // TONOTDO
                 }
                 else if (it_temp == boolean)
                 {
@@ -856,7 +963,134 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 }
                 else if (it_temp == array)
                 {
-                    // TODO
+                    it_temp = entry->entry.arr_entry->type;
+                    offset = entry->entry.arr_entry->offset;
+                    is_param = entry->is_param;
+
+                    if (it_temp == integer)
+                    {
+                        append_code(data->c, "mov edx, 0\n");
+                        append_code(data->c, "mov dl, [");
+                        if (is_param)
+                        {
+                            append_code(data->c, "ebp + ");
+                        }
+                        else
+                        {
+                            append_code(data->c, "esi + ");
+                        }
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                        append_code(data->c, "]\n");
+                        append_code(data->c, "push eax\n");
+                        append_code(data->c, "mov eax, edx\n");
+                        append_code(data->c, "mul byte four\n");
+                        append_code(data->c, "mov edx, [eax + arrspace]\n");
+                        append_code(data->c, "mov eax, edx\n");
+                        append_code(data->c, "mov dx, [eax]\n");
+                        append_code(data->c, "mov ax, dx\n");
+                        append_code(data->c, "cwde\n");
+                        append_code(data->c, "mov edx, eax\n");
+                        //set which id in eax
+                        n2 = get_child(n, 1);
+                        ldata = (ast_leaf *)get_data(n2);
+                        if (ldata->label.gms.t == NUM)
+                        {
+                            append_code(data->c, "mov eax, ");
+                            append_code(data->c, itoa(ldata->ltk->nv.int_val, (char *)calloc(MAX_INT_LEN, sizeof(char)), 10));
+                            append_code(data->c, "\n");
+                        }
+                        else if (ldata->label.gms.t == ID)
+                        {
+                            entry = find_id_for(ldata->ltk->lexeme, curr_scope, for_use, ldata->ltk->line_num);
+                            is_param = entry->is_param;
+                            offset = entry->entry.var_entry->offset;
+                            if (is_param)
+                            {
+                                append_code(data->c, "mov ax, [ebp + ");
+                            }
+                            else
+                            {
+                                append_code(data->c, "mov ax, [esi + ");
+                            }
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                            append_code(data->c, "]\n");
+                            append_code(data->c, "cwde\n");
+                        }
+                        append_code(data->c, "mul byte four\n");
+                        append_code(data->c, "add eax, edx\n");
+                        append_code(data->c, "mov dx, [eax]\n");
+                        append_code(data->c, "mov ax, dx\n");
+                        append_code(data->c, "cwde\n");
+                        append_code(data->c, "mov edx, eax\n");
+                        append_code(data->c, "pop eax\n");
+                    }
+                    else if (it_temp == real)
+                    {
+                        // TONOTDO
+                    }
+                    else if (it_temp == boolean)
+                    {
+                        append_code(data->c, "mov edx, 0\n");
+                        append_code(data->c, "mov dl, [");
+                        if (is_param)
+                        {
+                            append_code(data->c, "ebp + ");
+                        }
+                        else
+                        {
+                            append_code(data->c, "esi + ");
+                        }
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                        append_code(data->c, "]\n");
+                        append_code(data->c, "push eax\n");
+                        append_code(data->c, "mov eax, edx\n");
+                        append_code(data->c, "mul byte four\n");
+                        append_code(data->c, "mov edx, [eax + arrspace]\n");
+                        append_code(data->c, "mov eax, edx\n");
+                        append_code(data->c, "mov dx, [eax]\n");
+                        append_code(data->c, "mov al, dl\n");
+                        append_code(data->c, "cbw\n");
+                        append_code(data->c, "cwde\n");
+                        append_code(data->c, "mov edx, eax\n");
+                        //set which id in eax
+                        n2 = get_child(n, 1);
+                        ldata = (ast_leaf *)get_data(n2);
+                        if (ldata->label.gms.t == NUM)
+                        {
+                            append_code(data->c, "mov eax, ");
+                            append_code(data->c, itoa(ldata->ltk->nv.int_val, (char *)calloc(MAX_INT_LEN, sizeof(char)), 10));
+                            append_code(data->c, "\n");
+                        }
+                        else if (ldata->label.gms.t == ID)
+                        {
+                            entry = find_id_for(ldata->ltk->lexeme, curr_scope, for_use, ldata->ltk->line_num);
+                            is_param = entry->is_param;
+                            offset = entry->entry.var_entry->offset;
+                            if (is_param)
+                            {
+                                append_code(data->c, "mov ax, [ebp + ");
+                            }
+                            else
+                            {
+                                append_code(data->c, "mov ax, [esi + ");
+                            }
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                            append_code(data->c, "]\n");
+                            append_code(data->c, "cwde\n");
+                        }
+                        append_code(data->c, "mul byte four\n");
+                        append_code(data->c, "add eax, edx\n");
+                        append_code(data->c, "mov dl, [eax]\n");
+                        append_code(data->c, "mov al, dl\n");
+                        append_code(data->c, "cbw\n");
+                        append_code(data->c, "cwde\n");
+                        append_code(data->c, "mov edx, eax\n");
+                        append_code(data->c, "pop eax\n");
+                    }
+                    else
+                    {
+                        assert(false, "array (fetching value) can only be of type NUM RNUM BOOLEAN");
+                    }
                 }
                 else
                 {
@@ -1403,7 +1637,6 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
 
                     if (i == ll_num_nodes(data2->ll) - 1 && get_child(n, 3) == NULL)
                     {
-                        // TODO also if default case doesnt exist
                         label_temp = label_temp2;
                     }
                     else
