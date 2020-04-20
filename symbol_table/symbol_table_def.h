@@ -1,4 +1,12 @@
 /*
+Group- 35
+2017A7PS0082P		Laksh Singla
+2017A7PS0148P 		Kunal Mohta
+2017A7PS0191P 		Suyash Raj
+2017A7PS0302P 		Shubham Saxena
+*/
+
+/*
  Group- 35
  2017A7PS0082P		Laksh Singla
  2017A7PS0148P 		Kunal Mohta
@@ -71,6 +79,7 @@ struct ___FUNC_ST_ENTRY___ {
 	bool is_declared;
 	bool is_defined;
 	bool is_called;
+	bool is_defined2; // only for second pass
 	int offset;
 	int width;
 };

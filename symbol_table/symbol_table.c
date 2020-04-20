@@ -1,3 +1,11 @@
+/*
+Group- 35
+2017A7PS0082P		Laksh Singla
+2017A7PS0148P 		Kunal Mohta
+2017A7PS0191P 		Suyash Raj
+2017A7PS0302P 		Shubham Saxena
+*/
+
 #include "../lang_specs/entities.h"
 #include "./symbol_table_def.h"
 #include "./symbol_table.h"
@@ -10,6 +18,7 @@
 
 // global `display_err_flag` used
 void display_err (char *err_type, int line, char *err_msg) {
+	compile_err = true;
 	if (display_err_flag)
 		printf("%s error at line %d : %s\n\n", err_type, line, err_msg);
 }
@@ -174,6 +183,7 @@ func_entry *create_func_entry (char *name, bool is_declared, bool is_defined, bo
 	entry->is_declared = is_declared;
 	entry->is_defined = is_defined;
 	entry->is_called = is_called;
+	entry->is_defined2 = false;
 	entry->offset = offset;
 	entry->width = width;
 	return entry;

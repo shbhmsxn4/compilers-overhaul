@@ -1,3 +1,11 @@
+/*
+Group- 35
+2017A7PS0082P		Laksh Singla
+2017A7PS0148P 		Kunal Mohta
+2017A7PS0191P 		Suyash Raj
+2017A7PS0302P 		Shubham Saxena
+*/
+
 #include "parser.h"
 
 pt_node *make_pt_node(nonterminal nt, gm_rule *rule)
@@ -40,7 +48,7 @@ tree_node *get_next_pt_node(tree_node *c)
     }
 }
 
-tree *parse(lexer *l, grammar *gm, parse_table *pt)
+tree *parse(lexer *l, grammar *gm, parse_table *pt, gm_follow *fo)
 {
     stack *parser_stack = create_stack();
 
@@ -124,7 +132,7 @@ tree *parse(lexer *l, grammar *gm, parse_table *pt)
 					temp = (gm_unit *)pop(parser_stack);
 					free(temp);
 					temp = NULL;
-					next_lexer_token = get_next_token(l);
+					next_stack_unit = (gm_unit *)peek(parser_stack);
 				}
             }
         }
@@ -165,6 +173,21 @@ tree *parse(lexer *l, grammar *gm, parse_table *pt)
             {
                 // syntactical error has occurred
 				
+				while (next_lexer_token) {
+					bool is_in_follow = false;
+					for (int k = 0; k < fo->follow_set[next_stack_unit->gms.nt].num_terminals; k++)
+					{
+						if (next_lexer_token->t == fo->follow_set[next_stack_unit->gms.nt].follow[k]) {
+							is_in_follow = true;
+							break;
+						}
+					}
+
+					if (!is_in_follow) break;
+					printf("Syntax error at line %d - lexeme %s\n", next_lexer_token->line_num, next_lexer_token->lexeme);
+					temp = NULL;
+					next_lexer_token = get_next_token(l);
+				}
             }
         }
 
