@@ -297,7 +297,10 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 append_code(data->c, "\n\nsection .data\n");
                 append_code(data->c, "truestr db \"true\", 0\n");
                 append_code(data->c, "falsestr db \"false\", 0\n");
+                append_code(data->c, "ptruestr db \"true\", 10, 0\n");
+                append_code(data->c, "pfalsestr db \"false\", 10, 0\n");
                 append_code(data->c, "fmtd db \"%d\", 0\n");
+                append_code(data->c, "pfmtd db \"%d\", 10, 0\n");
                 append_code(data->c, "fmtf db \"%f\", 0\n");
                 append_code(data->c, "\n\nsection .bss\n");
                 append_code(data->c, "inpt resd 1\n");
@@ -395,23 +398,69 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     data2 = (ast_node *)get_data(n2);
                     generate_code(n2, st, curr_scope, lg);
                     stitch_code_append(n, n2);
-                    append_code(data->c, "push edx\n");
-                    append_code(data->c, "push dword fmtd\n");
-                    append_code(data->c, "call printf\n");
-                    append_code(data->c, "add esp, 8\n");
-                    // TODO floats and bools ka printing
+
+                    n2 = get_child(n2, 0);
+                    ldata = (ast_leaf *)get_data(n2);
+                    entry = find_id_for(ldata->ltk->lexeme, curr_scope, for_use, ldata->ltk->line_num);
+                    if (entry->is_array)
+                    {
+                        // TODO printing of array
+                    }
+                    else
+                    {
+                        it_temp = entry->entry.var_entry->type;
+                        if (it_temp == integer)
+                        {
+                            append_code(data->c, "push edx\n");
+                            append_code(data->c, "push dword pfmtd\n");
+                            append_code(data->c, "call printf\n");
+                            append_code(data->c, "add esp, 8\n");
+                        }
+                        else if (it_temp == real)
+                        {
+                            // TODO printing of floats
+                        }
+                        else if (it_temp == boolean)
+                        {
+                            append_code(data->c, "cmp edx, 0\n");
+                            label_temp = (char *)calloc(MAX_LABEL_LEN, sizeof(char));
+                            get_label(lg, label_temp);
+                            label_temp2 = (char *)calloc(MAX_LABEL_LEN, sizeof(char));
+                            get_label(lg, label_temp2);
+                            append_code(data->c, "je ");
+                            append_code(data->c, label_temp);
+                            append_code(data->c, "\n");
+                            append_code(data->c, "push dword ptruestr\n");
+                            append_code(data->c, "call printf\n");
+                            append_code(data->c, "add esp, 4\n");
+                            append_code(data->c, "jmp ");
+                            append_code(data->c, label_temp2);
+                            append_code(data->c, "\n");
+                            append_code(data->c, label_temp);
+                            append_code(data->c, ":\n");
+                            append_code(data->c, "push dword pfalsestr\n");
+                            append_code(data->c, "call printf\n");
+                            append_code(data->c, "add esp, 4\n");
+                            append_code(data->c, label_temp2);
+                            append_code(data->c, ":\n");
+                        }
+                        else
+                        {
+                            assert(false, "output stmt non arr variable is in NUM RNUM BOOLEAN");
+                        }
+                    }
                 }
                 else
                 {
                     if (ldata->label.gms.t == TRUE)
                     {
-                        append_code(data->c, "push truestr\n");
+                        append_code(data->c, "push dword ptruestr\n");
                         append_code(data->c, "call printf\n");
                         append_code(data->c, "add esp, 4\n");
                     }
                     else if (ldata->label.gms.t == FALSE)
                     {
-                        append_code(data->c, "push falsestr\n");
+                        append_code(data->c, "push dword pfalsestr\n");
                         append_code(data->c, "call printf\n");
                         append_code(data->c, "add esp, 4\n");
                     }
@@ -421,32 +470,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         append_code(data->c, itoa(ldata->ltk->nv.int_val, (char *)calloc(MAX_INT_LEN, sizeof(char)), 10));
                         append_code(data->c, "\n");
                         append_code(data->c, "push edx\n");
-                        append_code(data->c, "push dword fmtd\n");
+                        append_code(data->c, "push dword pfmtd\n");
                         append_code(data->c, "call printf\n");
                         append_code(data->c, "add esp, 8\n");
                     }
                     else if (ldata->label.gms.t == RNUM)
                     {
-                        entry = find_id_for(ldata->ltk->lexeme, curr_scope, for_use, ldata->ltk->line_num);
-                        offset = entry->entry.var_entry->offset;
-                        is_param = entry->is_param;
-                        if (is_param)
-                        {
-                            append_code(data->c, "mov edx, [ebp + ");
-                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                            append_code(data->c, "]\n");
-                        }
-                        else
-                        {
-                            append_code(data->c, "mov edx, [esi + ");
-                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                            append_code(data->c, "]\n");
-                        }
-                        append_code(data->c, "mov [inpt], edx\n");
-                        append_code(data->c, "push inpt\n");
-                        append_code(data->c, "push fmtf\n");
-                        append_code(data->c, "call printf\n");
-                        append_code(data->c, "add esp, 8\n");
+                        // TODO printing of float literals
                     }
                     else
                     {
