@@ -785,6 +785,11 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 if (for_range1 > for_range2)
                 {
                     for_loop_is_increasing = false;
+                    for_range2 -= 1;
+                }
+                else
+                {
+                    for_range2 += 1;
                 }
 
                 n2 = get_child(n, 0);
