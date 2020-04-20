@@ -1154,6 +1154,138 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     append_code(data->c, "pop ebx\n");
                 }
                 break;
+
+            case condionalStmt:
+                data->c = create_empty_code();
+
+                n2 = get_child(n, 0);
+                ldata = (ast_leaf *)get_data(n2);
+                entry = find_id_for(ldata->ltk->lexeme, curr_scope, for_use, ldata->ltk->line_num);
+                assert(entry->is_array == false, "switch doesn't work on array vars");
+                offset = entry->entry.var_entry->offset;
+                it_temp = entry->entry.var_entry->type;
+                is_param = entry->is_param;
+                if (it_temp == integer)
+                {
+                    append_code(data->c, "mov dx, ");
+                    if (is_param)
+                    {
+                        append_code(data->c, "[ebp + ");
+                    }
+                    else
+                    {
+                        append_code(data->c, "[esi + ");
+                    }
+                    append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                    append_code(data->c, "]\n");
+                    append_code(data->c, "push eax\n");
+                    append_code(data->c, "mov ax, dx\n");
+                    append_code(data->c, "cwde\n");
+                    append_code(data->c, "mov edx, eax\n");
+                    append_code(data->c, "pop eax\n");
+                }
+                else if (it_temp == boolean)
+                {
+                    append_code(data->c, "mov dl, ");
+                    if (is_param)
+                    {
+                        append_code(data->c, "[ebp + ");
+                    }
+                    else
+                    {
+                        append_code(data->c, "[esi + ");
+                    }
+                    append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                    append_code(data->c, "]\n");
+                    append_code(data->c, "push eax\n");
+                    append_code(data->c, "mov al, dl\n");
+                    append_code(data->c, "cbw\n");
+                    append_code(data->c, "cwde\n");
+                    append_code(data->c, "mov edx, eax\n");
+                    append_code(data->c, "pop eax\n");
+                }
+                else
+                {
+                    assert(false, "if not array, switch only accepts integer or boolean");
+                }
+
+                append_code(data->c, "mov edi, edx\n");
+
+                label_temp2 = (char *)calloc(MAX_LABEL_LEN, sizeof(char));
+                get_label(lg, label_temp2);
+
+                n2 = get_child(n, 2);
+                data2 = (ast_node *)get_data(n2);
+                for (int i = 0; i < ll_num_nodes(data2->ll); i++)
+                {
+                    append_code(data->c, "mov edx, edi\n");
+
+                    if (i == ll_num_nodes(data2->ll) - 1 && get_child(n, 3) == NULL)
+                    {
+                        // TODO also if default case doesnt exist
+                        label_temp = label_temp2;
+                    }
+                    else
+                    {
+                        label_temp = (char *)calloc(MAX_LABEL_LEN, sizeof(char));
+                        get_label(lg, label_temp);
+                    }
+                    n2 = ll_get(data2->ll, i);
+                    n2 = get_child(n2, 0);
+                    ldata = (ast_leaf *)get_data(n2);
+                    if (it_temp == integer)
+                    {
+                        append_code(data->c, "cmp edx, ");
+                        append_code(data->c, itoa(ldata->ltk->nv.int_val, (char *)calloc(MAX_INT_LEN, sizeof(char)), 10));
+                        append_code(data->c, "\n");
+                        append_code(data->c, "jne ");
+                        append_code(data->c, label_temp);
+                        append_code(data->c, "\n");
+                    }
+                    else if (it_temp == boolean)
+                    {
+                        append_code(data->c, "cmp edx, 0\n");
+                        if (ldata->label.gms.t == FALSE)
+                        {
+                            append_code(data->c, "jne ");
+                        }
+                        else if (ldata->label.gms.t == TRUE)
+                        {
+                            append_code(data->c, "je ");
+                        }
+                        else
+                        {
+                            assert(false, "switch bool var value can only be true or false");
+                        }
+                        append_code(data->c, label_temp);
+                        append_code(data->c, "\n");
+                    }
+
+                    n2 = ll_get(data2->ll, i);
+                    n2 = get_child(n2, 1);
+                    generate_code(n2, st, curr_scope, lg);
+                    stitch_code_append(n, n2);
+
+                    append_code(data->c, "jmp ");
+                    append_code(data->c, label_temp2);
+                    append_code(data->c, "\n");
+
+                    append_code(data->c, label_temp);
+                    append_code(data->c, ":\n");
+                }
+
+                if (get_child(n, 3) != NULL)
+                {
+                    n2 = get_child(n, 3);
+                    n2 = get_child(n2, 0);
+                    generate_code(n2, st, curr_scope, lg);
+                    stitch_code_append(n, n2);
+
+                    append_code(data->c, label_temp2);
+                    append_code(data->c, ":\n");
+                }
+
+                break;
             }
         }
     }
