@@ -15,6 +15,8 @@
 #define MAX_LABEL_LEN 5
 #define MAX_INT_LEN 8
 #define MAX_WIDTH_DIGS 8
+#define SIZE_OF_CALL 4
+#define MAX_LINE_NUM_DIGS 5
 
 code *create_empty_code();
 

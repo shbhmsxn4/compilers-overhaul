@@ -321,7 +321,9 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 ldata = (ast_leaf *)get_data(n2);
                 func_entry *f_temp_module = fetch_from_hash_map(st, ldata->ltk->lexeme);
                 append_code(data->c, "mov ebp, esp\n");
-                append_code(data->c, "add ebp, 4\n"); /// SIZE OF CALL
+                append_code(data->c, "add ebp, ");
+                append_code(data->c, itoa(SIZE_OF_CALL, (char *)calloc(MAX_INT_LEN, sizeof(char)), 10));
+                append_code(data->c, "\n");
                 int temp_module_width = f_temp_module->width;
                 append_code(data->c, "sub esp, ");
                 append_code(data->c, itoa(temp_module_width, (char *)calloc(MAX_WIDTH_DIGS, sizeof(char)), 10));
@@ -347,11 +349,149 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 ldata = (ast_leaf *)get_data(n2);
                 func_entry *callee_module_entry = fetch_from_hash_map(st, ldata->ltk->lexeme);
                 // set space for params
+                append_code(data->c, "sub esp, ");
+                append_code(data->c, itoa(callee_module_entry->input_params_width + callee_module_entry->output_params_width, (char *)calloc(MAX_WIDTH_DIGS, sizeof(char)), 10));
+                append_code(data->c, "\n");
                 // set input params
+                for (int i = 0; i < ll_num_nodes(callee_module_entry->input_param_list); i++)
+                {
+                    param_node *temp_ip_param_node = ll_get(callee_module_entry->input_param_list, i);
+                    ast_leaf *actual_argument_leaf = (ast_leaf *)get_data(ll_get(((ast_node *)get_data(get_child(n, 2)))->ll, i));
+                    if (temp_ip_param_node->is_array)
+                    {
+                        // TODO array param passing
+                        offset = temp_ip_param_node->param.arr_entry->offset;
+                        it_temp = array;
+                    }
+                    else
+                    {
+                        if (it_temp == integer)
+                        {
+                            common_id_entry *actual_argument_entry = find_id_for(actual_argument_leaf->ltk->lexeme, curr_scope, for_use, actual_argument_leaf->ltk->line_num);
+                            is_param = actual_argument_entry->is_param;
+                            offset = actual_argument_entry->entry.var_entry->offset;
+                            append_code(data->c, "mov dx, ");
+                            if (is_param)
+                            {
+                                append_code(data->c, "[ebp + ");
+                            }
+                            else
+                            {
+                                append_code(data->c, "[esi + ");
+                            }
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                            append_code(data->c, "]\n");
+                            offset = temp_ip_param_node->param.var_entry->offset;
+                            append_code(data->c, "mov [esp + ");
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                            append_code(data->c, "], dx\n");
+                        }
+                        else if (it_temp == real)
+                        {
+                            // TODO passing of float params
+                        }
+                        else if (it_temp == boolean)
+                        {
+                            common_id_entry *actual_argument_entry = find_id_for(actual_argument_leaf->ltk->lexeme, curr_scope, for_use, actual_argument_leaf->ltk->line_num);
+                            is_param = actual_argument_entry->is_param;
+                            offset = actual_argument_entry->entry.var_entry->offset;
+                            append_code(data->c, "mov dl, ");
+                            if (is_param)
+                            {
+                                append_code(data->c, "[ebp + ");
+                            }
+                            else
+                            {
+                                append_code(data->c, "[esi + ");
+                            }
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                            append_code(data->c, "]\n");
+                            offset = temp_ip_param_node->param.var_entry->offset;
+                            append_code(data->c, "mov [esp + ");
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                            append_code(data->c, "], dl\n");
+                        }
+                        else
+                        {
+                            assert(false, "if param is not array, then it is in NUM RNUM BOOLEAN");
+                        }
+                    }
+                }
                 // call
+                append_code(data->c, "call ");
+                append_code(data->c, ldata->ltk->lexeme);
+                append_code(data->c, "\n");
                 // get output from output params
+                for (int i = 0; i < ll_num_nodes(callee_module_entry->output_param_list); i++)
+                {
+                    param_node *temp_ip_param_node = ll_get(callee_module_entry->output_param_list, i);
+                    ast_leaf *actual_argument_leaf = (ast_leaf *)get_data(ll_get(((ast_node *)get_data(get_child(n, 0)))->ll, i));
+                    if (temp_ip_param_node->is_array)
+                    {
+                        // TODO array output param
+                        offset = temp_ip_param_node->param.arr_entry->offset;
+                        it_temp = array;
+                    }
+                    else
+                    {
+                        if (it_temp == integer)
+                        {
+                            offset = temp_ip_param_node->param.var_entry->offset;
+                            append_code(data->c, "mov dx, [esp + ");
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                            append_code(data->c, "]\n");
+
+                            common_id_entry *actual_argument_entry = find_id_for(actual_argument_leaf->ltk->lexeme, curr_scope, for_use, actual_argument_leaf->ltk->line_num);
+                            is_param = actual_argument_entry->is_param;
+                            offset = actual_argument_entry->entry.var_entry->offset;
+                            if (is_param)
+                            {
+                                append_code(data->c, "mov [ebp + ");
+                            }
+                            else
+                            {
+                                append_code(data->c, "mov [esi + ");
+                            }
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                            append_code(data->c, "], dx\n");
+                        }
+                        else if (it_temp == real)
+                        {
+                            // TODO float output param
+                        }
+                        else if (it_temp == boolean)
+                        {
+                            offset = temp_ip_param_node->param.var_entry->offset;
+                            append_code(data->c, "mov dl, [esp + ");
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                            append_code(data->c, "]\n");
+
+                            common_id_entry *actual_argument_entry = find_id_for(actual_argument_leaf->ltk->lexeme, curr_scope, for_use, actual_argument_leaf->ltk->line_num);
+                            is_param = actual_argument_entry->is_param;
+                            offset = actual_argument_entry->entry.var_entry->offset;
+                            if (is_param)
+                            {
+                                append_code(data->c, "mov [ebp + ");
+                            }
+                            else
+                            {
+                                append_code(data->c, "mov [esi + ");
+                            }
+                            append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                            append_code(data->c, "], dl\n");
+                        }
+                        else
+                        {
+                            assert(false, "if param is not array, then it is in NUM RNUM BOOLEAN");
+                        }
+                    }
+                }
                 // pop params
+                append_code(data->c, "add esp, ");
+                append_code(data->c, itoa(callee_module_entry->input_params_width + callee_module_entry->output_params_width, (char *)calloc(MAX_WIDTH_DIGS, sizeof(char)), 10));
+                append_code(data->c, "\n");
                 // pop regs
+                append_code(data->c, "popa\n");
                 break;
 
             case statements:
@@ -979,7 +1119,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
 
                 n2 = get_child(n, 3);
                 data2 = (ast_node *)get_data(n2);
-                generate_code(n2, st, curr_scope, lg);
+                generate_code(n2, st, (scope_node *)fetch_from_hash_map(curr_scope->child_scopes, itoa(((ast_leaf *)get_child(n, 2))->ltk->line_num, (char *)calloc(MAX_LINE_NUM_DIGS, sizeof(char)), 10)), lg);
                 stitch_code_append(n, n2);
 
                 append_code(data->c, "mov cx, ");
@@ -1049,7 +1189,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
 
                 n2 = get_child(n, 2);
                 data2 = (ast_node *)get_data(n2);
-                generate_code(n2, st, curr_scope, lg);
+                generate_code(n2, st, (scope_node *)fetch_from_hash_map(curr_scope->child_scopes, itoa(((ast_leaf *)get_child(n, 1))->ltk->line_num, (char *)calloc(MAX_LINE_NUM_DIGS, sizeof(char)), 10)), lg);
                 stitch_code_append(n, n2);
 
                 append_code(data->c, "jmp ");
@@ -1302,7 +1442,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
 
                     n2 = ll_get(data2->ll, i);
                     n2 = get_child(n2, 1);
-                    generate_code(n2, st, curr_scope, lg);
+                    generate_code(n2, st, (scope_node *)fetch_from_hash_map(curr_scope->child_scopes, itoa(((ast_leaf *)get_child(n, 1))->ltk->line_num, (char *)calloc(MAX_LINE_NUM_DIGS, sizeof(char)), 10)), lg);
                     stitch_code_append(n, n2);
 
                     append_code(data->c, "jmp ");
@@ -1317,7 +1457,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 {
                     n2 = get_child(n, 3);
                     n2 = get_child(n2, 1);
-                    generate_code(n2, st, curr_scope, lg);
+                    generate_code(n2, st, (scope_node *)fetch_from_hash_map(curr_scope->child_scopes, itoa(((ast_leaf *)get_child(n, 1))->ltk->line_num, (char *)calloc(MAX_LINE_NUM_DIGS, sizeof(char)), 10)), lg);
                     stitch_code_append(n, n2);
 
                     append_code(data->c, label_temp2);
