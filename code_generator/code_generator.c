@@ -302,6 +302,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 append_code(data->c, "fmtd db \"%d\", 0\n");
                 append_code(data->c, "pfmtd db \"%d\", 10, 0\n");
                 append_code(data->c, "fmtf db \"%f\", 0\n");
+                append_code(data->c, "fmts db \"%s\", 0\n");
                 append_code(data->c, "\n\nsection .bss\n");
                 append_code(data->c, "inpt resd 1\n");
 
@@ -349,17 +350,18 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     {
                         append_code(data->c, "mov [ebp + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                        append_code(data->c, "], edx\n");
+                        append_code(data->c, "], dx\n");
                     }
                     else
                     {
                         append_code(data->c, "mov [esi + ");
                         append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                        append_code(data->c, "], edx\n");
+                        append_code(data->c, "], dx\n");
                     }
                 }
                 else if (it_temp == real)
                 {
+                    // TODO verify float input strat
                     append_code(data->c, "push dword inpt\n");
                     append_code(data->c, "push dword fmtf\n");
                     append_code(data->c, "call scanf\n");
@@ -380,7 +382,51 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 }
                 else if (it_temp == boolean)
                 {
-                    // TODO
+                    append_code(data->c, "push dword inpt\n");
+                    append_code(data->c, "push dword fmtd\n");
+                    append_code(data->c, "call scanf\n");
+                    append_code(data->c, "add esp, 8\n");
+                    append_code(data->c, "mov edx, [inpt]\n");
+                    append_code(data->c, "cmp edx, 0\n");
+
+                    label_temp = (char *)calloc(MAX_LABEL_LEN, sizeof(char));
+                    get_label(lg, label_temp);
+                    label_temp2 = (char *)calloc(MAX_LABEL_LEN, sizeof(char));
+                    get_label(lg, label_temp2);
+
+                    append_code(data->c, "je ");
+                    append_code(data->c, label_temp);
+                    append_code(data->c, "\n");
+
+                    if (is_param)
+                    {
+                        append_code(data->c, "mov byte ptr [ebp + ");
+                    }
+                    else
+                    {
+                        append_code(data->c, "mov byte ptr [esi + ");
+                    }
+                    append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                    append_code(data->c, "], 1\n");
+                    append_code(data->c, "jmp ");
+                    append_code(data->c, label_temp2);
+                    append_code(data->c, "\n");
+
+                    append_code(data->c, label_temp);
+                    append_code(data->c, ":\n");
+                    if (is_param)
+                    {
+                        append_code(data->c, "mov byte ptr [ebp + ");
+                    }
+                    else
+                    {
+                        append_code(data->c, "mov byte ptr [esi + ");
+                    }
+                    append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                    append_code(data->c, "], 0\n");
+
+                    append_code(data->c, label_temp2);
+                    append_code(data->c, ":\n");
                 }
                 else
                 {
