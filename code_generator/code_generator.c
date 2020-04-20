@@ -400,11 +400,11 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
 
                     if (is_param)
                     {
-                        append_code(data->c, "mov byte ptr [ebp + ");
+                        append_code(data->c, "mov byte [ebp + ");
                     }
                     else
                     {
-                        append_code(data->c, "mov byte ptr [esi + ");
+                        append_code(data->c, "mov byte [esi + ");
                     }
                     append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                     append_code(data->c, "], 1\n");
@@ -416,11 +416,11 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                     append_code(data->c, ":\n");
                     if (is_param)
                     {
-                        append_code(data->c, "mov byte ptr [ebp + ");
+                        append_code(data->c, "mov byte [ebp + ");
                     }
                     else
                     {
-                        append_code(data->c, "mov byte ptr [esi + ");
+                        append_code(data->c, "mov byte [esi + ");
                     }
                     append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
                     append_code(data->c, "], 0\n");
@@ -648,7 +648,30 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 }
                 else if (it_temp == boolean)
                 {
-                    // TODO
+                    if (is_param)
+                    {
+                        append_code(data->c, "mov dl, [ebp + ");
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                        append_code(data->c, "]\n");
+                        append_code(data->c, "push eax\n");
+                        append_code(data->c, "mov al, dl\n");
+                        append_code(data->c, "cbw\n");
+                        append_code(data->c, "cwde\n");
+                        append_code(data->c, "mov edx, eax\n");
+                        append_code(data->c, "pop eax\n");
+                    }
+                    else
+                    {
+                        append_code(data->c, "mov dl, [esi + ");
+                        append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
+                        append_code(data->c, "]\n");
+                        append_code(data->c, "push eax\n");
+                        append_code(data->c, "mov al, dl\n");
+                        append_code(data->c, "cbw\n");
+                        append_code(data->c, "cwde\n");
+                        append_code(data->c, "mov edx, eax\n");
+                        append_code(data->c, "pop eax\n");
+                    }
                 }
                 else if (it_temp == array)
                 {
