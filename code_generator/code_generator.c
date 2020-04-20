@@ -317,6 +317,7 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 append_code(data->c, "fmtf db \"%f\", 0\n");
                 append_code(data->c, "fmts db \"%s\", 0\n");
                 append_code(data->c, "four db 4");
+                append_code(data->c, "promptstr db \"Enter value : \", 0\n");
                 append_code(data->c, "\n\nsection .bss\n");
                 append_code(data->c, "inpt resd 1\n");
                 append_code(data->c, "arrspace resd 256\n");
@@ -537,6 +538,9 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 it_temp = entry->entry.var_entry->type;
                 if (it_temp == integer)
                 {
+                    append_code(data->c, "push dword promptstr\n");
+                    append_code(data->c, "call printf\n");
+                    append_code(data->c, "add esp, 4\n");
                     append_code(data->c, "push dword inpt\n");
                     append_code(data->c, "push dword fmtd\n");
                     append_code(data->c, "call scanf\n");
@@ -558,6 +562,9 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 else if (it_temp == real)
                 {
                     // TONOTDO verify float input strat
+                    append_code(data->c, "push dword promptstr\n");
+                    append_code(data->c, "call printf\n");
+                    append_code(data->c, "add esp, 4\n");
                     append_code(data->c, "push dword inpt\n");
                     append_code(data->c, "push dword fmtf\n");
                     append_code(data->c, "call scanf\n");
@@ -578,6 +585,9 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 }
                 else if (it_temp == boolean)
                 {
+                    append_code(data->c, "push dword promptstr\n");
+                    append_code(data->c, "call printf\n");
+                    append_code(data->c, "add esp, 4\n");
                     append_code(data->c, "push dword inpt\n");
                     append_code(data->c, "push dword fmtd\n");
                     append_code(data->c, "call scanf\n");
