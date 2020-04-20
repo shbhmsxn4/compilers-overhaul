@@ -315,6 +315,45 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                 stitch_code_append(n, n2);
                 break;
 
+            case module:
+                data->c = create_empty_code();
+                n2 = get_child(n, 0);
+                ldata = (ast_leaf *)get_data(n2);
+                func_entry *f_temp_module = fetch_from_hash_map(st, ldata->ltk->lexeme);
+                append_code(data->c, "mov ebp, esp\n");
+                append_code(data->c, "add ebp, 4\n"); /// SIZE OF CALL
+                int temp_module_width = f_temp_module->width;
+                append_code(data->c, "sub esp, ");
+                append_code(data->c, itoa(temp_module_width, (char *)calloc(MAX_WIDTH_DIGS, sizeof(char)), 10));
+                append_code(data->c, "\n");
+                append_code(data->c, "mov esi, esp\n");
+
+                n2 = get_child(n, 3);
+                generate_code(n2, st, f_temp_module->local_scope, lg);
+                stitch_code_append(n, n2);
+
+                append_code(data->c, "add esp, ");
+                append_code(data->c, itoa(temp_module_width, (char *)calloc(MAX_WIDTH_DIGS, sizeof(char)), 10));
+                append_code(data->c, "\n");
+                append_code(data->c, "ret\n");
+                break;
+
+            case moduleReuseStmt:
+                data->c = create_empty_code();
+                // push all regs
+                append_code(data->c, "pusha\n");
+                // push params
+                n2 = get_child(n, 1);
+                ldata = (ast_leaf *)get_data(n2);
+                func_entry *callee_module_entry = fetch_from_hash_map(st, ldata->ltk->lexeme);
+                // set space for params
+                // set input params
+                // call
+                // get output from output params
+                // pop params
+                // pop regs
+                break;
+
             case statements:
                 data->c = create_empty_code();
                 for (int i = 0; i < ll_num_nodes(data->ll); i++)
@@ -586,13 +625,13 @@ void generate_code(tree_node *n, hash_map *st, scope_node *curr_scope, label_gen
                         {
                             append_code(data->c, "mov [ebp + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                            append_code(data->c, "], dl");
+                            append_code(data->c, "], dl\n");
                         }
                         else
                         {
                             append_code(data->c, "mov [esi + ");
                             append_code(data->c, itoa(offset, (char *)calloc(MAX_OFFSET_DIGS, sizeof(char)), 10));
-                            append_code(data->c, "], dl");
+                            append_code(data->c, "], dl\n");
                         }
                     }
                     else

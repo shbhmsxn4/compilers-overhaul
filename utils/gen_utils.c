@@ -27,3 +27,58 @@ char *itoa(int value, char *str, int base)
     sprintf(str, "%d", value);
     return str;
 }
+
+float parse_float(char *float_str)
+{
+    float mantissa;
+    int exponent;
+    float f;
+
+    // Check for existence of exponent
+    int exponent_idx = -1;
+    for (int i = 0; float_str[i] != '\0'; i++)
+    {
+        if (float_str[i] == 'e' || float_str[i] == 'E')
+        {
+            exponent_idx = i;
+            break;
+        }
+    }
+    if (exponent_idx != -1)
+    {
+        // Parse a float which has exponent
+
+        // Parse exponent
+        if (float_str[exponent_idx + 1] == '+')
+        {
+            exponent = atoi(float_str + exponent_idx + 2);
+        }
+        else if (float_str[exponent_idx + 1] == '-')
+        {
+            exponent = (-1) * atoi(float_str + exponent_idx + 2);
+        }
+        else
+        {
+            exponent = atoi(float_str + exponent_idx);
+        }
+
+        // Temporarily set the exponent to '\0'
+        char exponent_char = float_str[exponent_idx];
+        float_str[exponent_idx] = '\0';
+
+        // Parse mantissa
+        mantissa = strtof(float_str, NULL);
+
+        // Reset exponent to 'e' or 'E'
+        float_str[exponent_idx] = exponent_char;
+
+        // Combine mantissa and exponent into float
+        f = mantissa * pow(10, exponent);
+    }
+    else
+    {
+        // Parse a float which does not have exponent
+        f = strtof(float_str, NULL);
+    }
+    return f;
+}

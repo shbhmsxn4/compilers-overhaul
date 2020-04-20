@@ -135,7 +135,7 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         {
             terminal t = *((int *)hm_result);
             ltk->t = t;
-			/*ltk->lexeme = NULL;*/
+            /*ltk->lexeme = NULL;*/
             ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
             strcpy(ltk->lexeme, lexeme);
             ltk->line_num = line_num;
@@ -169,17 +169,15 @@ lexical_token *lexer_action(lexer *l, int final_state, char *lexeme, int line_nu
         return ltk;
         break;
     case 8:
-        // ******* TO IMPLEMENT : ret1savernum *******
         retract(l->fh, 1);
         ltk = (lexical_token *)calloc(1, sizeof(lexical_token));
         ltk->t = RNUM;
         lexeme[strlen(lexeme) - 1] = '\0';
         ltk->lexeme = (char *)calloc(strlen(lexeme) + 1, sizeof(char));
         strcpy(ltk->lexeme, lexeme);
-        /*ltk->lexeme = NULL;*/
         ltk->line_num = line_num;
         ltk->char_num = char_num;
-        ltk->nv.int_val = 0;
+        ltk->nv.float_val = parse_float(lexeme);
         return ltk;
         break;
     case 12:
